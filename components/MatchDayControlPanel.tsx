@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
 import { KitStatus, MemberStatus, AssignmentReason } from '../types';
@@ -70,6 +68,8 @@ const MatchDayControlPanel: React.FC<MatchDayControlPanelProps> = ({ match, team
     const assignedMemberId = match.KitResponsible || match.ProvisionalAssignee;
     const assignedMember = teamMembers.find(m => m.MemberID === assignedMemberId);
 
+    const isScheduled = match.Status === KitStatus.Scheduled;
+
     if (match.Status === KitStatus.Completed || match.Status === KitStatus.Missed || match.Status === KitStatus.NoPlay) {
         return (
              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
@@ -79,27 +79,10 @@ const MatchDayControlPanel: React.FC<MatchDayControlPanelProps> = ({ match, team
         );
     }
     
-    // Confirmation View for "Scheduled" matches
-    if (match.Status === KitStatus.Scheduled) {
-         return (
-             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
-                <div>
-                    <h3 className="text-xl font-bold">Confirm Match Status</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Confirm if the match on {formatDate(match.Date)} is happening.</p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                    <button onClick={() => actions.confirmMatchStatus(match.Date, KitStatus.Upcoming)} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700">
-                       ✔ Confirm Match is ON
-                    </button>
-                    <button onClick={() => actions.confirmMatchStatus(match.Date, KitStatus.NoPlay)} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
-                        ✖ Mark as No Play
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // Main Control View for "Upcoming" matches
+    const buttonBaseClasses = "flex flex-col items-center justify-center p-3 rounded-lg";
+    const disabledButtonClasses = "disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:text-gray-400 dark:disabled:text-gray-500";
+    
+    // Combined Main Control View for "Scheduled" and "Upcoming" matches
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-6">
             <div>
@@ -107,8 +90,25 @@ const MatchDayControlPanel: React.FC<MatchDayControlPanelProps> = ({ match, team
                     <h3 className="text-xl font-bold">Match Day Control: {formatDate(match.Date)}</h3>
                     <StatusBadge status={displayStatus} />
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Finalize match details and player duties.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                     {isScheduled ? "Confirm this match's status to enable match-day actions." : "Finalize match details and player duties."}
+                </p>
             </div>
+            
+            {isScheduled && (
+                 <div className="p-4 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-500/50">
+                     <h4 className="font-semibold text-yellow-800 dark:text-yellow-200">Action Required: Confirm Status</h4>
+                     <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">Please confirm if this match is happening.</p>
+                     <div className="flex flex-col sm:flex-row gap-4 pt-3">
+                        <button onClick={() => actions.confirmMatchStatus(match.Date, KitStatus.Upcoming)} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700">
+                           ✔ Confirm Match is ON
+                        </button>
+                        <button onClick={() => actions.confirmMatchStatus(match.Date, KitStatus.NoPlay)} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">
+                            ✖ Mark as No Play
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <h4 className="font-semibold">Current Assignment</h4>
@@ -126,35 +126,42 @@ const MatchDayControlPanel: React.FC<MatchDayControlPanelProps> = ({ match, team
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <button
                         onClick={() => setShowPenaltyModal(true)}
-                        className="flex flex-col items-center justify-center p-3 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-200"
+                        disabled={isScheduled}
+                        className={`${buttonBaseClasses} bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-200 ${disabledButtonClasses}`}
                     >
                         <ExclamationTriangleIcon className="w-6 h-6 mb-1"/>
                         <span className="text-sm font-semibold text-center">Apply Late Penalty</span>
                     </button>
                      <button
                         onClick={() => setShowReassignModal(true)}
-                        className="flex flex-col items-center justify-center p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 text-yellow-700 dark:text-yellow-200"
+                        disabled={isScheduled}
+                        className={`${buttonBaseClasses} bg-yellow-50 dark:bg-yellow-900/30 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 text-yellow-700 dark:text-yellow-200 ${disabledButtonClasses}`}
                     >
                         🔄
                         <span className="text-sm font-semibold text-center mt-1">Reassign Kit</span>
                     </button>
                     <button
                         onClick={() => actions.notifyPlayer(match.Date)}
-                        disabled={!assignedMember}
-                        className="flex flex-col items-center justify-center p-3 bg-green-50 dark:bg-green-900/30 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 disabled:opacity-50 text-green-700 dark:text-green-200"
+                        disabled={!assignedMember || isScheduled}
+                        className={`${buttonBaseClasses} bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 text-green-700 dark:text-green-200 ${disabledButtonClasses}`}
                     >
                         <WhatsAppIcon className="w-6 h-6 mb-1" />
                          <span className="text-sm font-semibold text-center">Notify Player</span>
                     </button>
                      <button
                         onClick={() => actions.confirmHandover(match.Date)}
-                        disabled={!assignedMember}
-                        className="flex flex-col items-center justify-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-50 text-blue-700 dark:text-blue-200"
+                        disabled={!assignedMember || isScheduled}
+                        className={`${buttonBaseClasses} bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-200 ${disabledButtonClasses}`}
                     >
                         ✔
                         <span className="text-sm font-semibold text-center mt-1">Confirm Handover</span>
                     </button>
                 </div>
+                 {isScheduled && (
+                    <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-4">
+                        Match-day actions are disabled until the match status is confirmed. You can manage assignments in the "Schedule" tab.
+                    </p>
+                )}
             </div>
             
             {showReassignModal && (
