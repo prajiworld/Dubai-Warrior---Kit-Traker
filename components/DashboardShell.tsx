@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TeamMember } from '../types';
-import { UsersIcon, UserCircleIcon } from './Icons';
+import { UserCircleIcon } from './Icons';
+import DubaiWarriorLogo from './Logo';
 
 interface DashboardShellProps {
     currentUser: TeamMember;
@@ -15,7 +16,7 @@ const DashboardShell: React.FC<DashboardShellProps> = ({ currentUser, onLogout, 
             <header className="bg-white dark:bg-gray-900 shadow-md">
                 <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
                     <div className="flex items-center">
-                        <UsersIcon className="h-8 w-8 text-brand-primary" />
+                        <DubaiWarriorLogo className="h-10 w-10" />
                         <h1 className="ml-3 text-2xl font-bold text-gray-800 dark:text-white">
                             Kit & Arrival Tracker
                         </h1>

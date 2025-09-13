@@ -1,10 +1,13 @@
 
+
 import React, { useMemo, useState, useEffect } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
 import { KitStatus, MemberStatus } from '../types';
 import { getDistanceInMeters, formatDate, formatTime } from '../utils/helpers';
 import { CheckCircleIcon, XCircleIcon } from './Icons';
 import StatusBadge from './StatusBadge';
+import DataManagementPanel from './DataManagementPanel';
+
 
 interface AdminPanelProps {
   teamMembers: TeamMember[];
@@ -20,7 +23,14 @@ interface AdminPanelProps {
     resetRound: () => void;
     updateMatchDetails: (date: string, newDetails: { lat: number; lng: number; radius: number; dueDate: string; }) => void;
     updateArrivalTime: (arrivalId: string, newTime: string) => void;
-    updateTeamMember: (memberId: string, updatedData: Partial<Pick<TeamMember, 'Name' | 'PhoneNumber' | 'OwnsCar' | 'Status'>>) => void;
+    // FIX: Unify updateTeamMember to always use the full TeamMember object, resolving conflicts between child components.
+    updateTeamMember: (member: TeamMember) => void;
+    // Master Data Actions
+    addTeamMember: (memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => void;
+    deleteTeamMember: (memberId: string) => void;
+    addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn'>) => void;
+    updateMatch: (match: KitTrackerEntry) => void;
+    deleteMatch: (date: string) => void;
   }
 }
 
@@ -143,7 +153,8 @@ const TodayDashboard: React.FC<Omit<AdminPanelProps, 'actions'> & { todayMatch?:
 
 const EditableMemberRow: React.FC<{
     member: TeamMember;
-    onSave: (memberId: string, updatedData: Partial<Pick<TeamMember, 'Name' | 'PhoneNumber' | 'OwnsCar' | 'Status'>>) => void;
+    // FIX: Change onSave signature to accept the full TeamMember object for consistency.
+    onSave: (member: TeamMember) => void;
 }> = ({ member, onSave }) => {
     const [name, setName] = useState(member.Name);
     const [phone, setPhone] = useState(member.PhoneNumber);
@@ -157,7 +168,8 @@ const EditableMemberRow: React.FC<{
     }, [name, phone, ownsCar, status, member]);
 
     const handleSave = () => {
-        onSave(member.MemberID, { Name: name, PhoneNumber: phone, OwnsCar: ownsCar, Status: status });
+        // FIX: Construct the full updated member object to pass to the unified onSave handler.
+        onSave({ ...member, Name: name, PhoneNumber: phone, OwnsCar: ownsCar, Status: status });
         setIsDirty(false);
     }
     
@@ -294,7 +306,7 @@ interface ArrivalWithDetails extends Arrival {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = (props) => {
-    const { kitTracker, arrivals, teamMembers } = props;
+    const { kitTracker, arrivals, teamMembers, actions } = props;
     const [activeTab, setActiveTab] = useState('dashboard');
     
     // Derived state ("Slices")
@@ -329,15 +341,33 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         dashboard: <TodayDashboard {...props} todayMatch={todayMatch} arrivalsToday={arrivalsToday}/>,
         roster: <RosterControl {...props} />,
         matches: <MatchManagement {...props} />,
+        data: <DataManagementPanel 
+                teamMembers={teamMembers} 
+                kitTracker={kitTracker} 
+                actions={{
+                    addTeamMember: actions.addTeamMember,
+                    // FIX: Pass the correct update function to DataManagementPanel. No cast needed now.
+                    updateTeamMember: actions.updateTeamMember,
+                    deleteTeamMember: actions.deleteTeamMember,
+                    addMatch: actions.addMatch,
+                    updateMatch: actions.updateMatch,
+                    deleteMatch: actions.deleteMatch,
+                }} 
+              />,
     };
+    
+    const getTabClass = (tabName: string) => {
+        return `${activeTab === tabName ? 'border-brand-accent text-brand-accent' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`;
+    }
 
     return (
         <div className="space-y-6">
             <div className="border-b border-gray-200 dark:border-gray-700">
                 <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                    <button onClick={() => setActiveTab('dashboard')} className={`${activeTab === 'dashboard' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Dashboard</button>
-                    <button onClick={() => setActiveTab('roster')} className={`${activeTab === 'roster' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Roster</button>
-                    <button onClick={() => setActiveTab('matches')} className={`${activeTab === 'matches' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Matches</button>
+                    <button onClick={() => setActiveTab('dashboard')} className={getTabClass('dashboard')}>Dashboard</button>
+                    <button onClick={() => setActiveTab('roster')} className={getTabClass('roster')}>Roster</button>
+                    <button onClick={() => setActiveTab('matches')} className={getTabClass('matches')}>Matches</button>
+                    <button onClick={() => setActiveTab('data')} className={getTabClass('data')}>Master Data</button>
                 </nav>
             </div>
             {tabs[activeTab as keyof typeof tabs]}

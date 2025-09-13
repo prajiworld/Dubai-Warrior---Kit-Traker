@@ -6,31 +6,10 @@ import DashboardShell from './components/DashboardShell';
 import UserPanel from './components/UserPanel';
 import AdminPanel from './components/AdminPanel';
 import UserProfile from './components/UserProfile';
-import { UsersIcon } from './components/Icons';
+import LoginPage from './components/LoginPage';
+import SignUpModal, { NewUserData } from './components/SignUpModal';
+import ForgotPasswordModal from './components/ForgotPasswordModal';
 
-// A simple user selector component
-const UserSelector: React.FC<{ members: TeamMember[], onSelectUser: (memberId: string) => void }> = ({ members, onSelectUser }) => {
-    return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-            <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
-                <div className="text-center">
-                    <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">Select Your Profile</h2>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">This identifies you on this device.</p>
-                </div>
-                <div className="space-y-4">
-                    {members.map(member => (
-                        <button key={member.MemberID} onClick={() => onSelectUser(member.MemberID)}
-                            className="w-full flex items-center justify-between px-4 py-3 text-lg font-medium text-left text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-brand-accent hover:text-white transition-colors duration-200"
-                        >
-                            <span>{member.Name}</span>
-                            {member.IsAdmin && <span className="text-xs font-bold text-yellow-500">ADMIN</span>}
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
 
 // Main App Component
 const App: React.FC = () => {
@@ -49,6 +28,8 @@ const App: React.FC = () => {
     });
     const [activeTab, setActiveTab] = useState('user');
     const [view, setView] = useState<'dashboard' | 'profile'>('dashboard');
+    const [modal, setModal] = useState<'signup' | 'forgotPassword' | null>(null);
+
 
     // Register Service Worker for PWA
     useEffect(() => {
@@ -82,15 +63,45 @@ const App: React.FC = () => {
 
     const currentUser = useMemo(() => teamMembers.find(m => m.MemberID === currentUserId), [currentUserId, teamMembers]);
     
-    const handleSelectUser = (memberId: string) => {
-        setCurrentUserId(memberId);
-        setView('dashboard');
-    };
+    const handleLogin = useCallback((username: string, password: string): boolean => {
+        const user = teamMembers.find(m => m.username.toLowerCase() === username.toLowerCase().trim() && m.password === password);
+        if (user) {
+            setCurrentUserId(user.MemberID);
+            setView('dashboard');
+            return true;
+        }
+        return false;
+    }, [teamMembers]);
 
     const handleLogout = () => {
         setCurrentUserId(null);
         setView('dashboard');
     };
+    
+    // --- USER REGISTRATION ACTION ---
+    const handleUserRegistration = useCallback((newUserData: NewUserData): boolean => {
+        if (teamMembers.some(m => m.username.toLowerCase() === newUserData.username.toLowerCase())) {
+            return false; // Indicate username exists
+        }
+        const maxOrder = Math.max(...teamMembers.map(m => m.Order), 0);
+        const newMember: TeamMember = {
+            ...newUserData,
+            MemberID: `user${Date.now()}`,
+            Role: 'Player',
+            IsAdmin: false,
+            OwnsCar: false,
+            Status: MemberStatus.Active,
+            RotationEligible: 'Yes',
+            PenaltyEligible: true,
+            Order: maxOrder + 1,
+            CompletedInRound: false,
+            Notes: 'New user signup.',
+        };
+        setTeamMembers(prev => [...prev, newMember]);
+        alert('Sign up successful! You can now log in.');
+        setModal(null); // Close modal on success
+        return true;
+    }, [teamMembers]);
     
     // --- USER PROFILE ACTION ---
     const handleUpdateUserProfile = useCallback((updatedData: Pick<TeamMember, 'PhoneNumber' | 'OwnsCar'>) => {
@@ -294,10 +305,98 @@ const App: React.FC = () => {
             ));
             alert("Member details updated.");
         }, []),
+
+        // --- MASTER DATA ACTIONS ---
+        addTeamMember: useCallback((memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => {
+            if (teamMembers.some(m => m.username.toLowerCase() === memberData.username.toLowerCase())) {
+                alert('Error: Username already exists.');
+                return;
+            }
+            const newMember: TeamMember = {
+                ...memberData,
+                MemberID: `user${Date.now()}`,
+                CompletedInRound: false,
+            };
+            setTeamMembers(prev => [...prev, newMember]);
+        }, [teamMembers]),
+        
+        updateFullTeamMember: useCallback((updatedMember: TeamMember) => {
+             setTeamMembers(prev => prev.map(m => m.MemberID === updatedMember.MemberID ? updatedMember : m));
+        }, []),
+
+        deleteTeamMember: useCallback((memberId: string) => {
+            if (!window.confirm("Are you sure you want to delete this member and all their arrival records?")) return;
+            // Also need to handle if they are a kit carrier for an upcoming match
+            setKitTracker(prev => prev.map(k => {
+                let updatedMatch = {...k};
+                if (k.ProvisionalAssignee === memberId) updatedMatch.ProvisionalAssignee = "";
+                if (k.KitResponsible === memberId) updatedMatch.KitResponsible = "";
+                if (k.TakenOnBehalfOf === memberId) updatedMatch.TakenOnBehalfOf = "";
+                return updatedMatch;
+            }));
+            setArrivals(prev => prev.filter(a => a.Member !== memberId));
+            setTeamMembers(prev => prev.filter(m => m.MemberID !== memberId));
+        }, []),
+
+        addMatch: useCallback((matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn'>) => {
+            if (kitTracker.some(k => k.Date === matchData.Date)) {
+                alert('Error: A match for this date already exists.');
+                return;
+            }
+            
+            // Find next provisional assignee
+            const eligibleMembers = teamMembers
+                .filter(m => m.RotationEligible === "Yes" && !m.CompletedInRound && m.Status === MemberStatus.Active)
+                .sort((a, b) => a.Order - b.Order);
+            const nextProvisionalAssigneeId = eligibleMembers.length > 0 ? eligibleMembers[0].MemberID : "";
+
+            const newMatch: KitTrackerEntry = {
+                ...matchData,
+                ProvisionalAssignee: nextProvisionalAssigneeId,
+                KitResponsible: '',
+                TakenOnBehalfOf: '',
+                Status: KitStatus.Upcoming,
+                WeeksHeld: 0,
+                MatchOn: false,
+            };
+
+            const newArrivalsForMatch: Arrival[] = teamMembers
+                .filter(m => m.Status === MemberStatus.Active)
+                .map(m => ({
+                    ArrivalID: `arr_${m.MemberID}_${matchData.Date}`,
+                    MatchDate: matchData.Date,
+                    Member: m.MemberID,
+                    ArrivalTime: null,
+                    CheckInLatLong: null,
+                }));
+
+            setKitTracker(prev => [...prev, newMatch]);
+            setArrivals(prev => [...prev, ...newArrivalsForMatch]);
+        }, [kitTracker, teamMembers]),
+        
+        updateMatch: useCallback((updatedMatch: KitTrackerEntry) => {
+            setKitTracker(prev => prev.map(k => k.Date === updatedMatch.Date ? updatedMatch : k));
+        }, []),
+
+        deleteMatch: useCallback((date: string) => {
+            if (!window.confirm("Are you sure you want to delete this match and all its arrival records?")) return;
+            setArrivals(prev => prev.filter(a => a.MatchDate !== date));
+            setKitTracker(prev => prev.filter(k => k.Date !== date));
+        }, []),
     };
 
     if (!currentUser) {
-        return <UserSelector members={teamMembers} onSelectUser={handleSelectUser} />;
+        return (
+            <>
+                <LoginPage 
+                    onLogin={handleLogin} 
+                    onShowSignUp={() => setModal('signup')}
+                    onShowForgotPassword={() => setModal('forgotPassword')}
+                />
+                {modal === 'signup' && <SignUpModal onSignUp={handleUserRegistration} onClose={() => setModal(null)} />}
+                {modal === 'forgotPassword' && <ForgotPasswordModal teamMembers={teamMembers} onClose={() => setModal(null)} />}
+            </>
+        );
     }
 
     const renderContent = () => {
@@ -337,7 +436,11 @@ const App: React.FC = () => {
                             teamMembers={teamMembers}
                             kitTracker={kitTracker}
                             arrivals={arrivals}
-                            actions={adminActions}
+                            actions={{
+                                ...adminActions,
+                                // FIX: Pass the correct full-member update function. This resolves the type error now that AdminPanelProps is updated.
+                                updateTeamMember: adminActions.updateFullTeamMember,
+                            }}
                         />
                     </div>
                 )}

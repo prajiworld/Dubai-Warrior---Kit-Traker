@@ -1,4 +1,5 @@
 
+
 export enum MemberStatus {
   Active = "Active",
   Injured = "Injured",
@@ -15,6 +16,8 @@ export enum KitStatus {
 export interface TeamMember {
   MemberID: string;
   Name: string;
+  username: string;
+  password: string;
   Role: string;
   IsAdmin: boolean;
   PhoneNumber: string;

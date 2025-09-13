@@ -1,12 +1,13 @@
 
+
 import { TeamMember, KitTrackerEntry, Arrival, MemberStatus, KitStatus } from './types';
 
 export const INITIAL_TEAM_MEMBERS: TeamMember[] = [
-  { MemberID: "admin1", Name: "Admin Alex", Role: "Captain", IsAdmin: true, PhoneNumber: "+971501111111", OwnsCar: true, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: true, Order: 1, CompletedInRound: false, Notes: "Team Captain" },
-  { MemberID: "user1", Name: "User Ben", Role: "Player", IsAdmin: false, PhoneNumber: "+971502222222", OwnsCar: true, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: true, Order: 2, CompletedInRound: false, Notes: "" },
-  { MemberID: "user2", Name: "User Charlie", Role: "Player", IsAdmin: false, PhoneNumber: "+971503333333", OwnsCar: false, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: false, Order: 3, CompletedInRound: false, Notes: "Doesn't own a car" },
-  { MemberID: "user3", Name: "User David", Role: "Player", IsAdmin: false, PhoneNumber: "+971504444444", OwnsCar: true, Status: MemberStatus.Injured, RotationEligible: "No", PenaltyEligible: true, Order: 4, CompletedInRound: false, Notes: "Sprained ankle" },
-  { MemberID: "user4", Name: "User Eve", Role: "Player", IsAdmin: false, PhoneNumber: "+971505555555", OwnsCar: true, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: true, Order: 5, CompletedInRound: true, Notes: "Completed last round" }
+  { MemberID: "admin1", Name: "Admin Alex", username: "alex", password: "password", Role: "Captain", IsAdmin: true, PhoneNumber: "+971501111111", OwnsCar: true, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: true, Order: 1, CompletedInRound: false, Notes: "Team Captain" },
+  { MemberID: "user1", Name: "User Ben", username: "ben", password: "password", Role: "Player", IsAdmin: false, PhoneNumber: "+971502222222", OwnsCar: true, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: true, Order: 2, CompletedInRound: false, Notes: "" },
+  { MemberID: "user2", Name: "User Charlie", username: "charlie", password: "password", Role: "Player", IsAdmin: false, PhoneNumber: "+971503333333", OwnsCar: false, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: false, Order: 3, CompletedInRound: false, Notes: "Doesn't own a car" },
+  { MemberID: "user3", Name: "User David", username: "david", password: "password", Role: "Player", IsAdmin: false, PhoneNumber: "+971504444444", OwnsCar: true, Status: MemberStatus.Injured, RotationEligible: "No", PenaltyEligible: true, Order: 4, CompletedInRound: false, Notes: "Sprained ankle" },
+  { MemberID: "user4", Name: "User Eve", username: "eve", password: "password", Role: "Player", IsAdmin: false, PhoneNumber: "+971505555555", OwnsCar: true, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: true, Order: 5, CompletedInRound: true, Notes: "Completed last round" }
 ];
 
 const today = new Date();
