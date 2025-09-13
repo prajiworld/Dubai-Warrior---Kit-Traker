@@ -56,7 +56,11 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
           </thead>
           <tbody>
             {kitTracker
-              .sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime())
+              .sort((a, b) => {
+                if (a.Status === KitStatus.Completed && b.Status !== KitStatus.Completed) return -1;
+                if (b.Status === KitStatus.Completed && a.Status !== KitStatus.Completed) return 1;
+                return new Date(b.Date).getTime() - new Date(a.Date).getTime();
+              })
               .map(entry => {
                 const provisionalName = getMemberName(entry.ProvisionalAssignee);
                 const responsibleName = getMemberName(entry.KitResponsible);

@@ -13,10 +13,16 @@ const KitRotationSchedulePanel: React.FC<KitRotationSchedulePanelProps> = ({ tea
     const [showAll, setShowAll] = useState(false);
 
     const upcomingMatches = kitTracker
-        .filter(k => k.Status === KitStatus.Upcoming)
-        .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime());
+        .filter(k => [KitStatus.Upcoming, KitStatus.Scheduled].includes(k.Status))
+        .sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
 
-    const eligibleMembers = teamMembers.filter(m => m.OwnsCar === true && m.Status === MemberStatus.Active);
+    const sortedEligibleMembers = teamMembers
+        .filter(m => m.OwnsCar === true && m.Status === MemberStatus.Active)
+        .sort((a, b) => {
+            if (a.CompletedInRound && !b.CompletedInRound) return -1;
+            if (!a.CompletedInRound && b.CompletedInRound) return 1;
+            return a.Order - b.Order;
+        });
 
     const getMemberName = (memberId: string): string => {
         return teamMembers.find(m => m.MemberID === memberId)?.Name || 'Unassigned';
@@ -29,7 +35,7 @@ const KitRotationSchedulePanel: React.FC<KitRotationSchedulePanelProps> = ({ tea
     };
     
     const displayedMatches = showAll ? upcomingMatches : upcomingMatches.slice(0, 3);
-    const displayedMembers = showAll ? eligibleMembers.sort((a,b) => a.Order - b.Order) : eligibleMembers.sort((a,b) => a.Order - b.Order).slice(0, 3);
+    const displayedMembers = showAll ? sortedEligibleMembers : sortedEligibleMembers.slice(0, 3);
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
@@ -99,7 +105,7 @@ const KitRotationSchedulePanel: React.FC<KitRotationSchedulePanelProps> = ({ tea
                 </table>
             </div>
 
-            {(isAdmin ? eligibleMembers.length > 3 : upcomingMatches.length > 3) && (
+            {(isAdmin ? sortedEligibleMembers.length > 3 : upcomingMatches.length > 3) && (
                  <div className="mt-4 text-center">
                     <button
                         onClick={() => setShowAll(prev => !prev)}

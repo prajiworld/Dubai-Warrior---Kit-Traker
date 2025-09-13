@@ -68,14 +68,6 @@ const App: React.FC = () => {
         return false;
     };
     const handleLogout = () => setCurrentUser(null);
-    const handleResetData = () => {
-        if (window.confirm("Are you sure you want to reset all application data to its initial state? This cannot be undone.")) {
-            localStorage.clear();
-            loadData();
-            setCurrentUser(null);
-            alert("Application data has been reset.");
-        }
-    };
 
     const handleSignUp = (userData: NewUserData): boolean => {
         if (teamMembers.some(m => m.username.toLowerCase() === userData.username.toLowerCase())) {
@@ -112,6 +104,21 @@ const App: React.FC = () => {
         setCurrentPage('dashboard');
     };
     
+    const handleChangePassword = (passwords: { current: string; new: string }): { success: boolean; message: string } => {
+        if (!currentUser) {
+            return { success: false, message: 'No user is logged in.' };
+        }
+        if (currentUser.password !== passwords.current) {
+            return { success: false, message: 'Incorrect current password.' };
+        }
+
+        const updatedUser = { ...currentUser, password: passwords.new };
+        setCurrentUser(updatedUser);
+        setTeamMembers(prev => prev.map(m => m.MemberID === currentUser.MemberID ? updatedUser : m));
+        
+        return { success: true, message: 'Password updated successfully!' };
+    };
+
     // FIX: Implement confirmKitDuty to resolve type error.
     const handleConfirmKitDuty = (matchDate: string) => {
         if (!currentUser) return;
@@ -463,16 +470,16 @@ const App: React.FC = () => {
     if (!currentUser) {
         return (
             <>
-                <LoginPage onLogin={handleLogin} onResetData={handleResetData} onShowSignUp={() => setShowSignUp(true)} onShowForgotPassword={() => setShowForgotPassword(true)} />
+                <LoginPage onLogin={handleLogin} onShowSignUp={() => setShowSignUp(true)} onShowForgotPassword={() => setShowForgotPassword(true)} />
                 {showSignUp && <SignUpModal onSignUp={handleSignUp} onClose={() => setShowSignUp(false)} />}
-                {showForgotPassword && <ForgotPasswordModal teamMembers={teamMembers} onClose={() => setShowForgotPassword(false)} />}
+                {showForgotPassword && <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />}
             </>
         );
     }
     
     const pageContent = () => {
         if (currentPage === 'profile') {
-            return <UserProfile currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onBack={() => setCurrentPage('dashboard')} />;
+            return <UserProfile currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onChangePassword={handleChangePassword} onBack={() => setCurrentPage('dashboard')} />;
         }
         if (currentPage === 'dashboard') {
             return currentUser.IsAdmin
