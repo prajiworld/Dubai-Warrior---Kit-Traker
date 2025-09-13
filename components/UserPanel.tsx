@@ -2,6 +2,7 @@ import React from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
 import { formatDate, formatTime } from '../utils/helpers';
 import KitSchedulePanel from './KitSchedulePanel';
+import KitRotationSchedulePanel from './KitRotationSchedulePanel';
 
 interface UserPanelProps {
     currentUser: TeamMember;
@@ -31,7 +32,10 @@ const UserPanel: React.FC<UserPanelProps> = ({ currentUser, teamMembers, kitTrac
                     arrivals={arrivals}
                     actions={actions}
                 />
-                 {/* Can add more user-specific panels here if needed */}
+                <KitRotationSchedulePanel 
+                    teamMembers={teamMembers}
+                    readOnly={true}
+                />
             </div>
             <div className="lg:col-span-1">
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">

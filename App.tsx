@@ -155,7 +155,6 @@ const App: React.FC = () => {
             setTeamMembers(prev => prev.filter(m => m.MemberID !== memberId));
         },
         addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn' | 'Reason' | 'DeferredMemberID'>) => {
-            // Logic to find next assignee, including handling deferrals
             const eligiblePlayers = teamMembers.filter(m => m.RotationEligible === 'Yes' && m.Status === MemberStatus.Active && !m.CompletedInRound).sort((a,b) => a.Order - b.Order);
             const deferredMatch = kitTracker.find(k => k.DeferredMemberID && new Date(k.Date).getTime() < new Date(matchData.Date).getTime());
             
@@ -164,7 +163,7 @@ const App: React.FC = () => {
 
             if (deferredMatch && deferredMatch.DeferredMemberID) {
                 const deferredPlayer = teamMembers.find(p => p.MemberID === deferredMatch.DeferredMemberID);
-                if (deferredPlayer && eligiblePlayers.includes(deferredPlayer)) {
+                if (deferredPlayer && eligiblePlayers.some(p => p.MemberID === deferredPlayer.MemberID)) {
                     nextPlayer = deferredPlayer;
                     reason = AssignmentReason.Deferred;
                 }
@@ -181,11 +180,11 @@ const App: React.FC = () => {
                 KitResponsible: '',
                 TakenOnBehalfOf: '',
                 Status: KitStatus.Upcoming,
-                WeeksHeld: 1, // Will be recalculated on handover, but starts at 1
+                WeeksHeld: 1, 
                 MatchOn: false,
                 Reason: reason,
             };
-            setKitTracker(prev => [...prev, newMatch].sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()));
+            setKitTracker(prev => [...prev, newMatch].sort((a,b) => new Date(a.Date).getTime() - new Date(b.Date).getTime()));
         },
         updateMatch: (match: KitTrackerEntry) => {
             setKitTracker(prev => prev.map(k => k.Date === match.Date ? match : k));
@@ -227,7 +226,6 @@ const App: React.FC = () => {
              setKitTracker(prev => [...prev, ...newMatches]);
              return { added, skipped };
         },
-        // NEW ACTIONS FOR MATCH DAY CONTROL
         applyLatePenalty: (matchDate: string) => {
             const match = kitTracker.find(k => k.Date === matchDate);
             if (!match) return;
@@ -251,10 +249,8 @@ const App: React.FC = () => {
                 let nextWeekMatchExists = prev.some(k => k.Date === nextWeekDateStr);
                 let updatedTracker = [...prev];
 
-                // Update current match
                 updatedTracker = updatedTracker.map(k => k.Date === matchDate ? { ...k, KitResponsible: lastLatecomer.Member, Reason: AssignmentReason.PenaltyLate, DeferredMemberID: originalAssigneeId } : k);
 
-                // Defer original assignee
                 if (nextWeekMatchExists) {
                     updatedTracker = updatedTracker.map(k => k.Date === nextWeekDateStr ? { ...k, ProvisionalAssignee: originalAssigneeId, Reason: AssignmentReason.Deferred } : k);
                 } else {
@@ -270,7 +266,6 @@ const App: React.FC = () => {
         },
         confirmHandover: (matchDate: string) => {
             let carrierId = '';
-            // Update match status and calculate Weeks Held
             setKitTracker(prev => {
                 const sorted = [...prev].sort((a,b) => new Date(a.Date).getTime() - new Date(b.Date).getTime());
                 const currentMatchIndex = sorted.findIndex(k => k.Date === matchDate);
@@ -290,13 +285,10 @@ const App: React.FC = () => {
                 return prev.map(k => k.Date === matchDate ? { ...k, Status: KitStatus.Completed, WeeksHeld: weeksHeld } : k);
             });
 
-            // Update carrier's CompletedInRound status
-            setTimeout(() => { // Use timeout to ensure kitTracker state is updated before teamMembers
+            setTimeout(() => {
                 if (!carrierId) return;
-                
                 let updatedMembers = teamMembers.map(m => m.MemberID === carrierId ? { ...m, CompletedInRound: true } : m);
                 
-                // Check for end-of-round reset
                 const eligiblePlayers = updatedMembers.filter(m => m.RotationEligible === 'Yes' && m.Status === MemberStatus.Active);
                 const allCompleted = eligiblePlayers.every(m => m.CompletedInRound);
                 
@@ -307,6 +299,44 @@ const App: React.FC = () => {
                 setTeamMembers(updatedMembers);
                 alert("Handover confirmed successfully!");
             }, 100);
+        },
+        moveMemberUpInRotation: (memberId: string) => {
+            setTeamMembers(prev => {
+                const members = [...prev];
+                const rotationList = members.filter(m => m.RotationEligible === 'Yes' && m.Status === MemberStatus.Active).sort((a, b) => a.Order - b.Order);
+                const memberIndex = rotationList.findIndex(m => m.MemberID === memberId);
+
+                if (memberIndex > 0) {
+                    const memberToMove = rotationList[memberIndex];
+                    const memberToSwapWith = rotationList[memberIndex - 1];
+                    const originalIndexA = members.findIndex(m => m.MemberID === memberToMove.MemberID);
+                    const originalIndexB = members.findIndex(m => m.MemberID === memberToSwapWith.MemberID);
+                    
+                    const tempOrder = members[originalIndexA].Order;
+                    members[originalIndexA].Order = members[originalIndexB].Order;
+                    members[originalIndexB].Order = tempOrder;
+                }
+                return members;
+            });
+        },
+        moveMemberDownInRotation: (memberId: string) => {
+            setTeamMembers(prev => {
+                const members = [...prev];
+                const rotationList = members.filter(m => m.RotationEligible === 'Yes' && m.Status === MemberStatus.Active).sort((a, b) => a.Order - b.Order);
+                const memberIndex = rotationList.findIndex(m => m.MemberID === memberId);
+
+                if (memberIndex < rotationList.length - 1) {
+                    const memberToMove = rotationList[memberIndex];
+                    const memberToSwapWith = rotationList[memberIndex + 1];
+                    const originalIndexA = members.findIndex(m => m.MemberID === memberToMove.MemberID);
+                    const originalIndexB = members.findIndex(m => m.MemberID === memberToSwapWith.MemberID);
+
+                    const tempOrder = members[originalIndexA].Order;
+                    members[originalIndexA].Order = members[originalIndexB].Order;
+                    members[originalIndexB].Order = tempOrder;
+                }
+                return members;
+            });
         },
     };
 
@@ -341,10 +371,6 @@ const App: React.FC = () => {
 
     const allActions = {
         ...adminActions,
-        checkIn: adminActions.checkIn,
-        confirmKitDuty: adminActions.confirmKitDuty,
-        declineKitDuty: adminActions.declineKitDuty,
-        takeOnBehalf: adminActions.takeOnBehalf,
     };
 
     return (

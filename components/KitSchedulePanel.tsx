@@ -39,13 +39,8 @@ const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMe
             );
         }
 
-        if (!isKitResponsibleSet) {
-            return (
-                <div className="mt-4">
-                    <button onClick={() => actions.takeOnBehalf(match.Date, currentUser.MemberID)} className="w-full px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700">I'll Take The Kit</button>
-                </div>
-            );
-        }
+        // Removed the "I'll Take The Kit" button as per user request.
+        // The space is left intentionally blank to direct users to the new schedule system.
 
         return null;
     };
