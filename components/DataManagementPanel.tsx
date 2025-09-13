@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { TeamMember, KitTrackerEntry } from '../types';
-import { MemberStatus, KitStatus } from '../types';
+import { MemberStatus, KitStatus, AssignmentReason } from '../types';
 import { PencilIcon, TrashIcon, XCircleIcon, DocumentArrowUpIcon } from './Icons';
 import StatusBadge from './StatusBadge';
 import { downloadFile, MEMBER_CSV_TEMPLATE, MATCH_CSV_TEMPLATE } from '../utils/helpers';
@@ -12,7 +12,7 @@ const EMPTY_MEMBER: Omit<TeamMember, 'MemberID' | 'CompletedInRound'> = {
     PenaltyEligible: true, Order: 100, Notes: '',
 };
 
-const EMPTY_MATCH: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn'> = {
+const EMPTY_MATCH: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn' | 'Reason' | 'DeferredMemberID'> = {
     Date: new Date().toISOString().split('T')[0], DueDate: new Date().toISOString().split('T')[0],
     GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250,
     CutoffTime: '22:45', Notes: '',
@@ -181,7 +181,7 @@ interface DataManagementPanelProps {
         addTeamMember: (memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => void;
         updateTeamMember: (member: TeamMember) => void;
         deleteTeamMember: (memberId: string) => void;
-        addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn'>) => void;
+        addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn' | 'Reason' | 'DeferredMemberID'>) => void;
         updateMatch: (match: KitTrackerEntry) => void;
         deleteMatch: (date: string) => void;
         addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
@@ -255,12 +255,22 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th className="px-4 py-2">Date</th><th className="px-4 py-2">Cutoff</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-center">Actions</th></tr></thead>
                     <tbody>{kitTracker.sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()).map(k => (<tr key={k.Date} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-2 font-medium">{k.Date}</td><td className="px-4 py-2">{k.CutoffTime}</td><td className="px-4 py-2"><StatusBadge status={k.Status} /></td>
-                        <td className="px-4 py-2 text-center flex items-center justify-center space-x-2"><button onClick={() => setEditingMatch(k)} className="text-blue-600 hover:text-blue-800 p-1" aria-label={`Edit match on ${k.Date}`}><PencilIcon /></button><button onClick={() => window.confirm(`Are you sure you want to delete the match on ${k.Date}?`) && actions.deleteMatch(k.Date)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete match on ${k.Date}`}><TrashIcon /></button></td></tr>))}</tbody>
+                        <td className="px-4 py-2 text-center flex items-center justify-center space-x-2">
+                            <button onClick={() => setEditingMatch(k)} className="text-blue-600 hover:text-blue-800 p-1" aria-label={`Edit match on ${k.Date}`}><PencilIcon /></button>
+                            <button onClick={() => window.confirm(`Are you sure you want to delete match on ${k.Date}?`) && actions.deleteMatch(k.Date)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete match on ${k.Date}`}><TrashIcon /></button>
+                        </td>
+                    </tr>))}
+                    </tbody>
                 </table></div>
             </div>
 
-            {editingMember && <MemberEditModal member={editingMember} onSave={handleMemberSave} onClose={() => setEditingMember(null)} />}
-            {editingMatch && <MatchEditModal match={editingMatch} onSave={handleMatchSave} onClose={() => setEditingMatch(null)} />}
+            {editingMember && (
+                <MemberEditModal member={editingMember} onSave={handleMemberSave} onClose={() => setEditingMember(null)} />
+            )}
+
+            {editingMatch && (
+                <MatchEditModal match={editingMatch} onSave={handleMatchSave} onClose={() => setEditingMatch(null)} />
+            )}
         </div>
     );
 };

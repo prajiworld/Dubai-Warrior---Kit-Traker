@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from './types';
-import { MemberStatus, KitStatus } from './types';
+import { MemberStatus, KitStatus, AssignmentReason } from './types';
 import { INITIAL_TEAM_MEMBERS, INITIAL_KIT_TRACKER, INITIAL_ARRIVALS } from './constants';
 import { getDistanceInMeters } from './utils/helpers';
 import LoginPage from './components/LoginPage';
@@ -80,20 +80,16 @@ const App: React.FC = () => {
     };
     
     // Actions for panels
-    const actions = {
+    const adminActions = {
         confirmKitDuty: (matchDate: string) => {
              if (!currentUser) return;
              setKitTracker(prev => prev.map(k => k.Date === matchDate ? {...k, KitResponsible: currentUser.MemberID} : k));
         },
         declineKitDuty: (matchDate: string) => {
-            if (!currentUser) return;
-            // Simple logic: reassign to next in line. A more complex app would have more logic here.
-            alert("You have declined. An admin will be notified to re-assign.");
-            // In a real app, this might trigger a notification or a state change.
-            // For now, we do nothing to the data.
+            alert("You have declined. An admin can now re-assign the kit from the Match Day Control panel.");
         },
         takeOnBehalf: (matchDate: string, memberId: string) => {
-            setKitTracker(prev => prev.map(k => k.Date === matchDate ? {...k, KitResponsible: memberId, TakenOnBehalfOf: k.ProvisionalAssignee} : k));
+            setKitTracker(prev => prev.map(k => k.Date === matchDate ? {...k, KitResponsible: memberId, TakenOnBehalfOf: k.ProvisionalAssignee, Reason: AssignmentReason.Reassigned } : k));
         },
         checkIn: (matchDate: string) => {
             if(!currentUser) return;
@@ -110,11 +106,13 @@ const App: React.FC = () => {
                     }
                     
                     const now = new Date();
-                    setArrivals(prev => prev.map(a => 
-                        a.MatchDate === matchDate && a.Member === currentUser.MemberID 
-                        ? { ...a, ArrivalTime: now.toISOString(), CheckInLatLong: { lat: latitude, lng: longitude } }
-                        : a
-                    ));
+                    const existingArrival = arrivals.find(a => a.MatchDate === matchDate && a.Member === currentUser.MemberID);
+                    if (existingArrival) {
+                        setArrivals(prev => prev.map(a => a.ArrivalID === existingArrival.ArrivalID ? { ...a, ArrivalTime: now.toISOString(), CheckInLatLong: { lat: latitude, lng: longitude } } : a));
+                    } else {
+                        const newArrival: Arrival = { ArrivalID: `arr_${Date.now()}`, MatchDate: matchDate, Member: currentUser.MemberID, ArrivalTime: now.toISOString(), CheckInLatLong: { lat: latitude, lng: longitude } };
+                        setArrivals(prev => [...prev, newArrival]);
+                    }
                     alert("Checked in successfully!");
                 },
                 (error) => {
@@ -122,16 +120,21 @@ const App: React.FC = () => {
                 }
             );
         },
-        notifyNextPlayer: () => {
-             const upcomingMatch = kitTracker.find(k => k.Status === KitStatus.Upcoming);
-             if (!upcomingMatch) {
-                 alert("No upcoming match to notify for.");
-                 return;
-             }
-             const assignee = teamMembers.find(m => m.MemberID === upcomingMatch.ProvisionalAssignee);
+        notifyNextPlayer: (matchDate: string) => {
+             const match = kitTracker.find(k => k.Date === matchDate);
+             if (!match) { alert("Match not found."); return; }
+
+             const assigneeId = match.KitResponsible || match.ProvisionalAssignee;
+             const assignee = teamMembers.find(m => m.MemberID === assigneeId);
+
              if (assignee) {
-                 const message = `Hi ${assignee.Name}, this is a reminder that you are provisionally assigned for kit duty for the match on ${upcomingMatch.Date}. Please log in to the app to confirm or decline.`;
-                 const whatsappUrl = `https://wa.me/${assignee.PhoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
+                 let message = "";
+                 if (match.Reason === AssignmentReason.PenaltyLate) {
+                     message = `Hi ${assignee.Name}, as per the late arrival rule, you are assigned to carry the cricket kit today (${match.Date}). Please confirm.`;
+                 } else {
+                     message = `Hi ${assignee.Name}, this is a reminder that you are scheduled to take the cricket kit today (${match.Date}). Please log in to the app to confirm or decline.`;
+                 }
+                 const whatsappUrl = `https://wa.me/${assignee.PhoneNumber.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
                  window.open(whatsappUrl, '_blank');
              } else {
                  alert("Could not find the assigned player.");
@@ -151,14 +154,25 @@ const App: React.FC = () => {
         deleteTeamMember: (memberId: string) => {
             setTeamMembers(prev => prev.filter(m => m.MemberID !== memberId));
         },
-        addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn'>) => {
-            // Very simple logic to assign to next eligible player
-            const eligiblePlayers = teamMembers.filter(m => m.RotationEligible === 'Yes' && m.Status === MemberStatus.Active).sort((a,b) => a.Order - b.Order);
-            const lastCompletedPlayer = teamMembers.find(m => m.CompletedInRound);
+        addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn' | 'Reason' | 'DeferredMemberID'>) => {
+            // Logic to find next assignee, including handling deferrals
+            const eligiblePlayers = teamMembers.filter(m => m.RotationEligible === 'Yes' && m.Status === MemberStatus.Active && !m.CompletedInRound).sort((a,b) => a.Order - b.Order);
+            const deferredMatch = kitTracker.find(k => k.DeferredMemberID && new Date(k.Date).getTime() < new Date(matchData.Date).getTime());
+            
             let nextPlayer = eligiblePlayers[0];
-            if (lastCompletedPlayer) {
-                const lastIndex = eligiblePlayers.findIndex(p => p.MemberID === lastCompletedPlayer.MemberID);
-                nextPlayer = eligiblePlayers[(lastIndex + 1) % eligiblePlayers.length];
+            let reason = AssignmentReason.Rotation;
+
+            if (deferredMatch && deferredMatch.DeferredMemberID) {
+                const deferredPlayer = teamMembers.find(p => p.MemberID === deferredMatch.DeferredMemberID);
+                if (deferredPlayer && eligiblePlayers.includes(deferredPlayer)) {
+                    nextPlayer = deferredPlayer;
+                    reason = AssignmentReason.Deferred;
+                }
+            }
+            
+            if (!nextPlayer) {
+                alert("No eligible players available for rotation.");
+                return;
             }
 
             const newMatch: KitTrackerEntry = {
@@ -167,10 +181,11 @@ const App: React.FC = () => {
                 KitResponsible: '',
                 TakenOnBehalfOf: '',
                 Status: KitStatus.Upcoming,
-                WeeksHeld: 0,
-                MatchOn: false
+                WeeksHeld: 1, // Will be recalculated on handover, but starts at 1
+                MatchOn: false,
+                Reason: reason,
             };
-            setKitTracker(prev => [...prev, newMatch]);
+            setKitTracker(prev => [...prev, newMatch].sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()));
         },
         updateMatch: (match: KitTrackerEntry) => {
             setKitTracker(prev => prev.map(k => k.Date === match.Date ? match : k));
@@ -183,25 +198,13 @@ const App: React.FC = () => {
             let skipped = 0;
             const newMembers: TeamMember[] = [];
             data.forEach(row => {
-                if (!row.username || teamMembers.some(m => m.username === row.username)) {
-                    skipped++;
-                    return;
-                }
+                if (!row.username || teamMembers.some(m => m.username === row.username)) { skipped++; return; }
                 newMembers.push({
-                    MemberID: `user_csv_${Date.now()}_${Math.random()}`,
-                    Name: row.Name,
-                    username: row.username,
-                    password: row.password,
-                    Role: row.Role || 'Player',
-                    IsAdmin: row.IsAdmin?.toLowerCase() === 'true',
-                    PhoneNumber: row.PhoneNumber,
-                    OwnsCar: row.OwnsCar?.toLowerCase() === 'true',
+                    MemberID: `user_csv_${Date.now()}_${Math.random()}`, Name: row.Name, username: row.username, password: row.password, Role: row.Role || 'Player',
+                    IsAdmin: row.IsAdmin?.toLowerCase() === 'true', PhoneNumber: row.PhoneNumber, OwnsCar: row.OwnsCar?.toLowerCase() === 'true',
                     Status: (Object.values(MemberStatus) as string[]).includes(row.Status) ? row.Status as MemberStatus : MemberStatus.Active,
-                    RotationEligible: row.RotationEligible === "Yes" ? "Yes" : "No",
-                    PenaltyEligible: row.PenaltyEligible?.toLowerCase() === 'true',
-                    Order: parseInt(row.Order, 10) || 100,
-                    CompletedInRound: false,
-                    Notes: row.Notes
+                    RotationEligible: row.RotationEligible === "Yes" ? "Yes" : "No", PenaltyEligible: row.PenaltyEligible?.toLowerCase() === 'true',
+                    Order: parseInt(row.Order, 10) || 100, CompletedInRound: false, Notes: row.Notes
                 });
                 added++;
             });
@@ -209,57 +212,110 @@ const App: React.FC = () => {
             return { added, skipped };
         },
         addBulkMatches: (data: any[]) => {
-             let added = 0;
-             let skipped = 0;
-             // This is simplified. Proper logic for assigning users would be needed.
-             // For now, we just add them without assigning anyone.
+             let added = 0, skipped = 0;
              const newMatches: KitTrackerEntry[] = [];
              data.forEach(row => {
-                if (!row.Date || kitTracker.some(m => m.Date === row.Date)) {
-                    skipped++;
-                    return;
-                }
+                if (!row.Date || kitTracker.some(m => m.Date === row.Date)) { skipped++; return; }
                  newMatches.push({
-                    Date: row.Date,
-                    DueDate: row.DueDate || row.Date,
-                    GroundLatLong: { lat: parseFloat(row.Lat) || 0, lng: parseFloat(row.Lng) || 0 },
-                    GeoRadiusMeters: parseInt(row.GeoRadiusMeters, 10) || 250,
-                    CutoffTime: row.CutoffTime || '22:45',
-                    ProvisionalAssignee: '', // Left blank for bulk, admin can assign later
-                    KitResponsible: '',
-                    TakenOnBehalfOf: '',
-                    Status: KitStatus.Upcoming,
-                    WeeksHeld: 0,
-                    Notes: row.Notes || '',
-                    MatchOn: false,
+                    Date: row.Date, DueDate: row.DueDate || row.Date, GroundLatLong: { lat: parseFloat(row.Lat) || 0, lng: parseFloat(row.Lng) || 0 },
+                    GeoRadiusMeters: parseInt(row.GeoRadiusMeters, 10) || 250, CutoffTime: row.CutoffTime || '22:45',
+                    ProvisionalAssignee: '', KitResponsible: '', TakenOnBehalfOf: '', Status: KitStatus.Upcoming, WeeksHeld: 0,
+                    Notes: row.Notes || '', MatchOn: false, Reason: AssignmentReason.Rotation,
                 });
                 added++;
              });
              setKitTracker(prev => [...prev, ...newMatches]);
              return { added, skipped };
-        }
+        },
+        // NEW ACTIONS FOR MATCH DAY CONTROL
+        applyLatePenalty: (matchDate: string) => {
+            const match = kitTracker.find(k => k.Date === matchDate);
+            if (!match) return;
+
+            const lateArrivals = arrivals.filter(a => {
+                if (!a.ArrivalTime || a.MatchDate !== matchDate) return false;
+                const arrivalTime = new Date(a.ArrivalTime).toTimeString().slice(0, 5);
+                return arrivalTime > match.CutoffTime;
+            }).sort((a, b) => new Date(b.ArrivalTime!).getTime() - new Date(a.ArrivalTime!).getTime());
+
+            const lastLatecomer = lateArrivals[0];
+            if (!lastLatecomer) { alert("No latecomers found to apply penalty."); return; }
+
+            const originalAssigneeId = match.ProvisionalAssignee;
+
+            setKitTracker(prev => {
+                const nextWeekDate = new Date(matchDate);
+                nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+                const nextWeekDateStr = nextWeekDate.toISOString().split('T')[0];
+                
+                let nextWeekMatchExists = prev.some(k => k.Date === nextWeekDateStr);
+                let updatedTracker = [...prev];
+
+                // Update current match
+                updatedTracker = updatedTracker.map(k => k.Date === matchDate ? { ...k, KitResponsible: lastLatecomer.Member, Reason: AssignmentReason.PenaltyLate, DeferredMemberID: originalAssigneeId } : k);
+
+                // Defer original assignee
+                if (nextWeekMatchExists) {
+                    updatedTracker = updatedTracker.map(k => k.Date === nextWeekDateStr ? { ...k, ProvisionalAssignee: originalAssigneeId, Reason: AssignmentReason.Deferred } : k);
+                } else {
+                    const nextMatch: KitTrackerEntry = { ...match, Date: nextWeekDateStr, DueDate: nextWeekDateStr, ProvisionalAssignee: originalAssigneeId, KitResponsible: '', Status: KitStatus.Upcoming, Reason: AssignmentReason.Deferred, WeeksHeld: 0, MatchOn: false, Notes: `Deferred from ${matchDate}` };
+                    updatedTracker.push(nextMatch);
+                }
+                return updatedTracker;
+            });
+            alert(`${teamMembers.find(m=>m.MemberID === lastLatecomer.Member)?.Name} has been assigned the kit due to late arrival.`);
+        },
+        reassignKit: (matchDate: string, memberId: string) => {
+             setKitTracker(prev => prev.map(k => k.Date === matchDate ? {...k, KitResponsible: memberId, Reason: AssignmentReason.Reassigned } : k));
+        },
+        confirmHandover: (matchDate: string) => {
+            let carrierId = '';
+            // Update match status and calculate Weeks Held
+            setKitTracker(prev => {
+                const sorted = [...prev].sort((a,b) => new Date(a.Date).getTime() - new Date(b.Date).getTime());
+                const currentMatchIndex = sorted.findIndex(k => k.Date === matchDate);
+                const currentMatch = sorted[currentMatchIndex];
+                if (!currentMatch || !currentMatch.KitResponsible) {
+                    alert("No one is assigned as Kit Responsible to confirm handover.");
+                    return prev;
+                }
+                carrierId = currentMatch.KitResponsible;
+
+                const previousMatch = sorted[currentMatchIndex - 1];
+                let weeksHeld = 1;
+                if (previousMatch && previousMatch.KitResponsible === currentMatch.KitResponsible) {
+                    weeksHeld = previousMatch.WeeksHeld + 1;
+                }
+                
+                return prev.map(k => k.Date === matchDate ? { ...k, Status: KitStatus.Completed, WeeksHeld: weeksHeld } : k);
+            });
+
+            // Update carrier's CompletedInRound status
+            setTimeout(() => { // Use timeout to ensure kitTracker state is updated before teamMembers
+                if (!carrierId) return;
+                
+                let updatedMembers = teamMembers.map(m => m.MemberID === carrierId ? { ...m, CompletedInRound: true } : m);
+                
+                // Check for end-of-round reset
+                const eligiblePlayers = updatedMembers.filter(m => m.RotationEligible === 'Yes' && m.Status === MemberStatus.Active);
+                const allCompleted = eligiblePlayers.every(m => m.CompletedInRound);
+                
+                if (allCompleted) {
+                    alert("Round complete! Resetting rotation for all eligible players.");
+                    updatedMembers = updatedMembers.map(m => eligiblePlayers.find(p => p.MemberID === m.MemberID) ? { ...m, CompletedInRound: false } : m);
+                }
+                setTeamMembers(updatedMembers);
+                alert("Handover confirmed successfully!");
+            }, 100);
+        },
     };
 
     const handleSignUp = (userData: NewUserData): boolean => {
-        if(teamMembers.some(m => m.username.toLowerCase() === userData.username.toLowerCase())) {
-            return false;
-        }
-
+        if(teamMembers.some(m => m.username.toLowerCase() === userData.username.toLowerCase())) { return false; }
         const newMember: TeamMember = {
-            MemberID: `user_${Date.now()}`,
-            Name: userData.Name,
-            username: userData.username,
-            password: userData.password,
-            PhoneNumber: userData.PhoneNumber,
-            Role: 'Player',
-            IsAdmin: false,
-            OwnsCar: false,
-            Status: MemberStatus.Active,
-            RotationEligible: 'Yes',
-            PenaltyEligible: true,
-            Order: Math.max(...teamMembers.map(m => m.Order), 0) + 1,
-            CompletedInRound: false,
-            Notes: 'New user signup'
+            MemberID: `user_${Date.now()}`, Name: userData.Name, username: userData.username, password: userData.password, PhoneNumber: userData.PhoneNumber,
+            Role: 'Player', IsAdmin: false, OwnsCar: false, Status: MemberStatus.Active, RotationEligible: 'Yes',
+            PenaltyEligible: true, Order: Math.max(...teamMembers.map(m => m.Order), 0) + 1, CompletedInRound: false, Notes: 'New user signup'
         };
         setTeamMembers(prev => [...prev, newMember]);
         alert('Sign up successful! Please log in with your new credentials.');
@@ -283,6 +339,14 @@ const App: React.FC = () => {
         );
     }
 
+    const allActions = {
+        ...adminActions,
+        checkIn: adminActions.checkIn,
+        confirmKitDuty: adminActions.confirmKitDuty,
+        declineKitDuty: adminActions.declineKitDuty,
+        takeOnBehalf: adminActions.takeOnBehalf,
+    };
+
     return (
         <DashboardShell
             currentUser={currentUser}
@@ -291,8 +355,8 @@ const App: React.FC = () => {
         >
             {appView === 'DASHBOARD' && (
                 currentUser.IsAdmin 
-                ? <AdminPanel currentUser={currentUser} teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={actions} />
-                : <UserPanel currentUser={currentUser} teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={actions} />
+                ? <AdminPanel currentUser={currentUser} teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={allActions} />
+                : <UserPanel currentUser={currentUser} teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={allActions} />
             )}
             {appView === 'PROFILE' && (
                 <UserProfile 

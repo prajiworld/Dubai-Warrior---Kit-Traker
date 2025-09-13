@@ -9,7 +9,7 @@ interface KitHistoryPanelProps {
   teamMembers: TeamMember[];
   kitTracker: KitTrackerEntry[];
   actions: {
-    notifyNextPlayer: () => void;
+    notifyNextPlayer: (matchDate: string) => void;
   }
 }
 
@@ -31,7 +31,7 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
             <p className="text-sm text-gray-500 dark:text-gray-400">Track the entire history of kit duty assignments.</p>
         </div>
         <button
-          onClick={actions.notifyNextPlayer}
+          onClick={() => upcomingMatch && actions.notifyNextPlayer(upcomingMatch.Date)}
           disabled={!upcomingMatch}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
@@ -41,12 +41,13 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left">
+        <table className="w-full text-left text-sm">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
               <th className="px-4 py-3">Match Date</th>
               <th className="px-4 py-3">Assigned (Provisional)</th>
               <th className="px-4 py-3">Actual Carrier</th>
+              <th className="px-4 py-3">Reason</th>
               <th className="px-4 py-3 text-center">Weeks Held</th>
               <th className="px-4 py-3 text-center">Status</th>
             </tr>
@@ -66,6 +67,7 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
                     <td className={`px-4 py-3 ${isReassigned ? 'font-bold' : ''}`}>
                       {responsibleName || (entry.Status === KitStatus.Upcoming ? 'Not Decided' : 'N/A')}
                     </td>
+                    <td className="px-4 py-3">{entry.Reason}</td>
                     <td className="px-4 py-3 text-center">{entry.WeeksHeld || '-'}</td>
                     <td className="px-4 py-3 text-center">
                       <StatusBadge status={entry.Status} />

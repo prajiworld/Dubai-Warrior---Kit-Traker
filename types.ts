@@ -1,5 +1,3 @@
-
-
 export enum MemberStatus {
   Active = "Active",
   Injured = "Injured",
@@ -12,6 +10,14 @@ export enum KitStatus {
   Missed = "Missed",
   NoPlay = "No Play",
 }
+
+export enum AssignmentReason {
+  Rotation = "Rotation",
+  PenaltyLate = "Penalty: Late",
+  Deferred = "Deferred",
+  Reassigned = "Reassigned",
+}
+
 
 export interface TeamMember {
   MemberID: string;
@@ -43,6 +49,8 @@ export interface KitTrackerEntry {
   WeeksHeld: number;
   Notes: string;
   MatchOn: boolean;
+  Reason: AssignmentReason;
+  DeferredMemberID?: string; // MemberID of the person who was deferred
 }
 
 export interface Arrival {

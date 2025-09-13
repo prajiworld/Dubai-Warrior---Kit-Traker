@@ -1,6 +1,4 @@
-
-
-import { TeamMember, KitTrackerEntry, Arrival, MemberStatus, KitStatus } from './types';
+import { TeamMember, KitTrackerEntry, Arrival, MemberStatus, KitStatus, AssignmentReason } from './types';
 
 export const INITIAL_TEAM_MEMBERS: TeamMember[] = [
   { MemberID: "admin1", Name: "Admin Alex", username: "alex", password: "password", Role: "Captain", IsAdmin: true, PhoneNumber: "+971501111111", OwnsCar: true, Status: MemberStatus.Active, RotationEligible: "Yes", PenaltyEligible: true, Order: 1, CompletedInRound: false, Notes: "Team Captain" },
@@ -20,9 +18,9 @@ nextWeek.setDate(today.getDate() + 7);
 const nextWeekStr = nextWeek.toISOString().split('T')[0];
 
 export const INITIAL_KIT_TRACKER: KitTrackerEntry[] = [
-    { Date: yesterdayStr, DueDate: yesterdayStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user1", KitResponsible: "user1", TakenOnBehalfOf: "", Status: KitStatus.Completed, WeeksHeld: 1, Notes: "Last week's match", MatchOn: true },
-    { Date: todayStr, DueDate: todayStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user2", KitResponsible: "", TakenOnBehalfOf: "", Status: KitStatus.Upcoming, WeeksHeld: 0, Notes: "Today's big game!", MatchOn: false },
-    { Date: nextWeekStr, DueDate: nextWeekStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user3", KitResponsible: "", TakenOnBehalfOf: "", Status: KitStatus.Upcoming, WeeksHeld: 0, Notes: "Next week", MatchOn: false },
+    { Date: yesterdayStr, DueDate: yesterdayStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user1", KitResponsible: "user1", TakenOnBehalfOf: "", Status: KitStatus.Completed, WeeksHeld: 1, Notes: "Last week's match", MatchOn: true, Reason: AssignmentReason.Rotation },
+    { Date: todayStr, DueDate: todayStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user2", KitResponsible: "", TakenOnBehalfOf: "", Status: KitStatus.Upcoming, WeeksHeld: 0, Notes: "Today's big game!", MatchOn: false, Reason: AssignmentReason.Rotation },
+    { Date: nextWeekStr, DueDate: nextWeekStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user3", KitResponsible: "", TakenOnBehalfOf: "", Status: KitStatus.Upcoming, WeeksHeld: 0, Notes: "Next week", MatchOn: false, Reason: AssignmentReason.Rotation },
 ];
 
 export const INITIAL_ARRIVALS: Arrival[] = [
