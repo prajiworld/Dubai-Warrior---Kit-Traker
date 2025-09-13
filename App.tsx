@@ -210,18 +210,9 @@ const App: React.FC = () => {
     };
 
     const handleAddMatch = (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn' | 'Reason' | 'DeferredMemberID'>) => {
-        // Logic to determine provisional assignee
-        const lastCompletedMatch = kitTracker.filter(k => k.Status === KitStatus.Completed && k.KitResponsible).sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime())[0];
-        const lastResponsibleMember = teamMembers.find(m => m.MemberID === lastCompletedMatch?.KitResponsible);
-        const lastOrder = lastResponsibleMember?.Order || 0;
-        
-        const eligibleMembers = teamMembers.filter(m => m.Status === MemberStatus.Active && m.RotationEligible === 'Yes').sort((a,b) => a.Order - b.Order);
-        let nextAssignee = eligibleMembers.find(m => m.Order > lastOrder);
-        if (!nextAssignee && eligibleMembers.length > 0) nextAssignee = eligibleMembers[0];
-
         const newMatch: KitTrackerEntry = {
             ...matchData,
-            ProvisionalAssignee: nextAssignee?.MemberID || '',
+            ProvisionalAssignee: '', // New matches are unassigned by default
             KitResponsible: '',
             TakenOnBehalfOf: '',
             Status: KitStatus.Upcoming,
@@ -252,6 +243,17 @@ const App: React.FC = () => {
     const handleDeleteMatch = (date: string) => {
         setKitTracker(prev => prev.filter(m => m.Date !== date));
         setArrivals(prev => prev.filter(a => a.MatchDate !== date));
+    };
+    
+    const handleAssignKitDuty = (matchDate: string, memberId: string) => {
+        setKitTracker(prev => prev.map(m => 
+            m.Date === matchDate ? { 
+                ...m, 
+                ProvisionalAssignee: memberId, 
+                KitResponsible: '', // Reset responsible when re-assigning provisionally
+                Reason: AssignmentReason.Rotation 
+            } : m
+        ));
     };
 
     const handleApplyLatePenalty = (matchDate: string) => {
@@ -367,7 +369,7 @@ const App: React.FC = () => {
         declineKitDuty: handleDeclineKitDuty,
         checkIn: handleCheckIn,
         notifyNextPlayer: handleNotifyNextPlayer,
-        // DataManagementPanel
+        // DataManagementPanel & Schedule Panel
         addTeamMember: handleAddTeamMember,
         updateTeamMember: handleUpdateTeamMember,
         deleteTeamMember: handleDeleteTeamMember,
@@ -376,6 +378,7 @@ const App: React.FC = () => {
         deleteMatch: handleDeleteMatch,
         addBulkTeamMembers: (data: any) => handleBulkUpload(data, 'members'),
         addBulkMatches: (data: any) => handleBulkUpload(data, 'matches'),
+        assignKitDuty: handleAssignKitDuty,
         // MatchDayControlPanel
         applyLatePenalty: handleApplyLatePenalty,
         reassignKit: handleReassignKit,

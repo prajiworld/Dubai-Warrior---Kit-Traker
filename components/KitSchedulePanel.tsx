@@ -4,6 +4,8 @@ import { KitStatus } from '../types';
 import { formatDate, formatTime } from '../utils/helpers';
 import StatusBadge from './StatusBadge';
 
+// FIX: Removed unused 'takeOnBehalf' from KitSchedulePanelProps['actions'] to resolve a type error.
+// The prop was required but not provided by the parent UserPanel component because the associated feature was removed.
 interface KitSchedulePanelProps {
     currentUser: TeamMember;
     teamMembers: TeamMember[];
@@ -12,7 +14,6 @@ interface KitSchedulePanelProps {
     actions: {
         confirmKitDuty: (matchDate: string) => void;
         declineKitDuty: (matchDate: string) => void;
-        takeOnBehalf: (matchDate: string, memberId: string) => void;
         checkIn: (matchDate: string) => void;
     };
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
 import KitSchedulePanel from './KitSchedulePanel';
 import KitHistoryPanel from './KitHistoryPanel';
+import KitRotationSchedulePanel from './KitRotationSchedulePanel';
 
 interface UserPanelProps {
     currentUser: TeamMember;
@@ -25,6 +26,11 @@ const UserPanel: React.FC<UserPanelProps> = ({ currentUser, teamMembers, kitTrac
                 kitTracker={kitTracker}
                 arrivals={arrivals}
                 actions={actions}
+            />
+            <KitRotationSchedulePanel
+                teamMembers={teamMembers}
+                kitTracker={kitTracker}
+                isAdmin={false}
             />
             <KitHistoryPanel 
                 teamMembers={teamMembers}

@@ -6,7 +6,7 @@ import DataManagementPanel from './DataManagementPanel';
 import KitRotationSchedulePanel from './KitRotationSchedulePanel';
 import MatchDayControlPanel from './MatchDayControlPanel';
 
-type AdminTab = 'dashboard' | 'rotation' | 'match_control' | 'data';
+type AdminTab = 'dashboard' | 'schedule' | 'match_control' | 'data';
 
 interface AdminPanelProps {
     currentUser: TeamMember;
@@ -28,6 +28,8 @@ interface AdminPanelProps {
         deleteMatch: (date: string) => void;
         addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
         addBulkMatches: (data: any[]) => { added: number, skipped: number };
+        // Schedule Panel action
+        assignKitDuty: (matchDate: string, memberId: string) => void;
         // MatchDayControlPanel actions
         applyLatePenalty: (matchDate: string) => void;
         reassignKit: (matchDate: string, memberId: string) => void;
@@ -52,7 +54,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     return (
         <div className="space-y-6">
             <div className="flex flex-wrap items-center gap-2 p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-                {(['dashboard', 'rotation', 'match_control', 'data'] as AdminTab[]).map(tab => (
+                {(['dashboard', 'schedule', 'match_control', 'data'] as AdminTab[]).map(tab => (
                      <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -65,7 +67,14 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
 
             <div className="mt-4">
                 {activeTab === 'dashboard' && <UserPanel {...props} />}
-                {activeTab === 'rotation' && <KitRotationSchedulePanel teamMembers={props.teamMembers} kitTracker={props.kitTracker} />}
+                {activeTab === 'schedule' && (
+                    <KitRotationSchedulePanel 
+                        teamMembers={props.teamMembers} 
+                        kitTracker={props.kitTracker} 
+                        isAdmin={true}
+                        onAssign={props.actions.assignKitDuty}
+                    />
+                )}
                 {activeTab === 'match_control' && (
                     upcomingMatch ? (
                         <MatchDayControlPanel
