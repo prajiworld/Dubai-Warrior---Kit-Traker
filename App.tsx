@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from './types';
 import { MemberStatus, KitStatus, AssignmentReason } from './types';
@@ -396,8 +395,13 @@ const App: React.FC = () => {
             return prev.map(k => k.Date === matchDate ? { ...k, Status: KitStatus.Completed, KitResponsible: carrierId, WeeksHeld: weeksHeld } : k);
         });
 
-        // Update Team Member: set CompletedInRound to true
+        // Update Team Member: set CompletedInRound to true, but only if it's not a penalty
         setTeamMembers(prev => {
+            // If the reason was a penalty or reassignment, do not update rotation status.
+            if (match.Reason === AssignmentReason.PenaltyLate || match.Reason === AssignmentReason.Reassigned) {
+                return prev;
+            }
+
             const updatedMembers = prev.map(m => m.MemberID === carrierId ? { ...m, CompletedInRound: true } : m);
 
             // Check if round is complete
