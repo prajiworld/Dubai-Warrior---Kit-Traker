@@ -5,9 +5,10 @@ interface LoginPageProps {
     onLogin: (username: string, password: string) => boolean;
     onShowSignUp: () => void;
     onShowForgotPassword: () => void;
+    onShowPublicView: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForgotPassword }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForgotPassword, onShowPublicView }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -28,6 +29,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
     const handleSignUpClick = (e: React.MouseEvent) => {
         e.preventDefault();
         onShowSignUp();
+    }
+    
+    const handlePublicViewClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        onShowPublicView();
     }
 
     return (
@@ -61,15 +67,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
                             />
                         </div>
                         <div>
-                             <label htmlFor="password-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
                             <input
-                                id="password-input"
+                                id="password"
                                 name="password"
                                 type="password"
                                 autoComplete="current-password"
                                 required
                                 className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                placeholder="••••••••"
+                                placeholder="Password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
@@ -80,30 +86,41 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
                         <p className="text-sm text-red-500 text-center font-medium">{error}</p>
                     )}
 
-                    <div className="flex items-center justify-end text-sm">
-                        <a href="#" onClick={handleForgotPasswordClick} className="font-medium text-brand-accent hover:text-brand-secondary">
-                            Forgot your password?
-                        </a>
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                            <a href="#" onClick={handleForgotPasswordClick} className="font-medium text-brand-accent hover:text-brand-primary">
+                                Forgot your password?
+                            </a>
+                        </div>
                     </div>
 
                     <div>
                         <button
                             type="submit"
-                            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent transition-colors duration-300"
+                            className="w-full group relative flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent transition-colors duration-300"
                         >
-                            Sign In
+                            Sign in
                         </button>
                     </div>
                 </form>
-                <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-                    Don't have an account?{' '}
-                    <a href="#" onClick={handleSignUpClick} className="font-medium text-brand-accent hover:text-brand-secondary">
-                        Sign up
-                    </a>
-                </p>
+                <div className="text-center text-sm">
+                    <p className="text-gray-600 dark:text-gray-400">
+                        Don't have an account?{' '}
+                        <a href="#" onClick={handleSignUpClick} className="font-medium text-brand-accent hover:text-brand-primary">
+                            Sign up
+                        </a>
+                    </p>
+                     <p className="mt-2 text-gray-600 dark:text-gray-400">
+                        Or view the{' '}
+                        <a href="#" onClick={handlePublicViewClick} className="font-medium text-brand-accent hover:text-brand-primary">
+                            Public Schedule
+                        </a>
+                    </p>
+                </div>
             </div>
         </div>
     );
-}
+};
 
+// FIX: Add default export
 export default LoginPage;
