@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
-import KitHistoryPanel from './KitHistoryPanel';
-import DataManagementPanel from './DataManagementPanel';
-import MatchDayControlPanel from './MatchDayControlPanel';
-import KitRotationSchedulePanel from './KitRotationSchedulePanel';
 import { KitStatus } from '../types';
+import UserPanel from './UserPanel';
+import DataManagementPanel from './DataManagementPanel';
+import KitRotationSchedulePanel from './KitRotationSchedulePanel';
+import MatchDayControlPanel from './MatchDayControlPanel';
+
+type AdminTab = 'dashboard' | 'rotation' | 'match_control' | 'data';
 
 interface AdminPanelProps {
     currentUser: TeamMember;
@@ -12,7 +14,12 @@ interface AdminPanelProps {
     kitTracker: KitTrackerEntry[];
     arrivals: Arrival[];
     actions: {
+        // UserPanel actions
+        confirmKitDuty: (matchDate: string) => void;
+        declineKitDuty: (matchDate: string) => void;
+        checkIn: (matchDate: string) => void;
         notifyNextPlayer: (matchDate: string) => void;
+        // DataManagementPanel actions
         addTeamMember: (memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => void;
         updateTeamMember: (member: TeamMember) => void;
         deleteTeamMember: (memberId: string) => void;
@@ -21,78 +28,61 @@ interface AdminPanelProps {
         deleteMatch: (date: string) => void;
         addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
         addBulkMatches: (data: any[]) => { added: number, skipped: number };
+        // MatchDayControlPanel actions
         applyLatePenalty: (matchDate: string) => void;
         reassignKit: (matchDate: string, memberId: string) => void;
         confirmHandover: (matchDate: string) => void;
-        moveMemberUpInRotation: (memberId: string) => void; // New
-        moveMemberDownInRotation: (memberId: string) => void; // New
+        notifyPlayer: (matchDate: string) => void;
     };
 }
 
-type AdminTab = 'Dashboard' | 'Schedule' | 'History' | 'Data';
+const AdminPanel: React.FC<AdminPanelProps> = (props) => {
+    const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, teamMembers, kitTracker, arrivals, actions }) => {
-    const [activeTab, setActiveTab] = useState<AdminTab>('Dashboard');
+    const upcomingMatch = props.kitTracker
+        .filter(k => k.Status === KitStatus.Upcoming)
+        .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0];
 
-    const renderTabContent = () => {
-        switch (activeTab) {
-            case 'Dashboard':
-                const sortedMatches = [...kitTracker].sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
-                const today = new Date().toISOString().split('T')[0];
-                const activeMatch = sortedMatches.find(m => m.Date === today && m.Status === KitStatus.Upcoming) || sortedMatches.find(m => m.Status === KitStatus.Upcoming) || sortedMatches[0];
-
-                return (
-                     <div className="space-y-6">
-                       {activeMatch ? (
-                           <MatchDayControlPanel
-                                match={activeMatch}
-                                arrivals={arrivals.filter(a => a.MatchDate === activeMatch.Date)}
-                                teamMembers={teamMembers}
-                                actions={{
-                                    applyLatePenalty: actions.applyLatePenalty,
-                                    reassignKit: actions.reassignKit,
-                                    confirmHandover: actions.confirmHandover,
-                                    notifyPlayer: actions.notifyNextPlayer,
-                                }}
-                           />
-                       ) : <p>No active match found.</p>}
-                    </div>
-                );
-            case 'Schedule':
-                return <KitRotationSchedulePanel 
-                            teamMembers={teamMembers} 
-                            readOnly={false} 
-                            actions={{
-                                moveMemberUp: actions.moveMemberUpInRotation,
-                                moveMemberDown: actions.moveMemberDownInRotation,
-                            }}
-                        />;
-            case 'History':
-                return <KitHistoryPanel teamMembers={teamMembers} kitTracker={kitTracker} actions={{notifyNextPlayer: actions.notifyNextPlayer}} />;
-            case 'Data':
-                const dataActions = { ...actions }; 
-                return <DataManagementPanel teamMembers={teamMembers} kitTracker={kitTracker} actions={dataActions} />;
-            default:
-                return null;
-        }
+    const tabStyles = {
+        base: "px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent",
+        active: "bg-brand-primary text-white",
+        inactive: "text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600",
     };
-
-    const tabClass = (tabName: AdminTab) =>
-      `px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-        activeTab === tabName
-          ? 'bg-brand-primary text-white'
-          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-      }`;
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center space-x-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-                <button onClick={() => setActiveTab('Dashboard')} className={tabClass('Dashboard')}>Dashboard</button>
-                <button onClick={() => setActiveTab('Schedule')} className={tabClass('Schedule')}>Schedule</button>
-                <button onClick={() => setActiveTab('History')} className={tabClass('History')}>History</button>
-                <button onClick={() => setActiveTab('Data')} className={tabClass('Data')}>Data Management</button>
+            <div className="flex flex-wrap items-center gap-2 p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+                {(['dashboard', 'rotation', 'match_control', 'data'] as AdminTab[]).map(tab => (
+                     <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`${tabStyles.base} ${activeTab === tab ? tabStyles.active : tabStyles.inactive}`}
+                    >
+                        {tab.replace('_', ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </button>
+                ))}
             </div>
-            <div>{renderTabContent()}</div>
+
+            <div className="mt-4">
+                {activeTab === 'dashboard' && <UserPanel {...props} />}
+                {activeTab === 'rotation' && <KitRotationSchedulePanel teamMembers={props.teamMembers} kitTracker={props.kitTracker} />}
+                {activeTab === 'match_control' && (
+                    upcomingMatch ? (
+                        <MatchDayControlPanel
+                            match={upcomingMatch}
+                            arrivals={props.arrivals.filter(a => a.MatchDate === upcomingMatch.Date)}
+                            teamMembers={props.teamMembers}
+                            actions={props.actions}
+                        />
+                    ) : (
+                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                            <h3 className="text-lg font-semibold">No Upcoming Match</h3>
+                            <p className="text-gray-500 mt-1">Match Day Control is only available when a match is scheduled.</p>
+                        </div>
+                    )
+                )}
+                {activeTab === 'data' && <DataManagementPanel teamMembers={props.teamMembers} kitTracker={props.kitTracker} actions={props.actions} />}
+            </div>
         </div>
     );
 };
