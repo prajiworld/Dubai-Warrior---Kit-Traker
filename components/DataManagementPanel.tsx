@@ -259,7 +259,7 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
                 <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold">Match Schedules</h3><button onClick={() => setEditingMatch(EMPTY_MATCH)} className={`${buttonClass} bg-brand-primary hover:bg-brand-secondary`}>Add New Match</button></div>
                 <div className="overflow-x-auto"><table className="w-full text-left text-sm">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th className="px-4 py-2">Date</th><th className="px-4 py-2">Cutoff</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-center">Actions</th></tr></thead>
-                    <tbody>{kitTracker.sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()).map(k => {
+                    <tbody>{kitTracker.sort((a,b) => new Date(a.Date).getTime() - new Date(b.Date).getTime()).map(k => {
                         
                         let displayStatus: KitStatus | 'Match Day' = k.Status;
                         if (k.Status === KitStatus.Upcoming && k.Date === today) {

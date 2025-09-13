@@ -14,7 +14,7 @@ const KitRotationSchedulePanel: React.FC<KitRotationSchedulePanelProps> = ({ tea
 
     const upcomingMatches = kitTracker
         .filter(k => [KitStatus.Upcoming, KitStatus.Scheduled].includes(k.Status))
-        .sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
+        .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime());
 
     const sortedEligibleMembers = teamMembers
         .filter(m => m.OwnsCar === true && m.Status === MemberStatus.Active)
