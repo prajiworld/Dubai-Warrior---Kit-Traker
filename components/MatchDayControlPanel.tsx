@@ -4,6 +4,7 @@ import { KitStatus, MemberStatus, AssignmentReason } from '../types';
 import { formatDate, formatTime } from '../utils/helpers';
 import StatusBadge from './StatusBadge';
 import { WhatsAppIcon, ExclamationTriangleIcon, XCircleIcon } from './Icons';
+import PlayerSelectionModal from './PlayerSelectionModal';
 
 interface MatchDayControlPanelProps {
     match: KitTrackerEntry;
@@ -17,38 +18,6 @@ interface MatchDayControlPanelProps {
         notifyPlayer: (matchDate: string) => void;
     };
 }
-
-const ReassignModal: React.FC<{
-    title: string;
-    teamMembers: TeamMember[];
-    onSelect: (memberId: string) => void;
-    onClose: () => void;
-}> = ({ title, teamMembers, onSelect, onClose }) => {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75 p-4" onClick={onClose}>
-            <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-xl shadow-2xl m-4" onClick={e => e.stopPropagation()}>
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h4 className="font-semibold text-lg">{title}</h4>
-                        <button type="button" onClick={onClose}><XCircleIcon /></button>
-                    </div>
-                    <ul className="space-y-2 max-h-60 overflow-y-auto">
-                        {teamMembers.map(member => (
-                            <li key={member.MemberID}>
-                                <button
-                                    onClick={() => onSelect(member.MemberID)}
-                                    className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                    {member.Name}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const MatchDayControlPanel: React.FC<MatchDayControlPanelProps> = ({ match, teamMembers, arrivals, actions }) => {
     const [showReassignModal, setShowReassignModal] = useState(false);
@@ -165,7 +134,7 @@ const MatchDayControlPanel: React.FC<MatchDayControlPanelProps> = ({ match, team
             </div>
             
             {showReassignModal && (
-                <ReassignModal
+                <PlayerSelectionModal
                     title="Reassign Kit To"
                     teamMembers={teamMembers.filter(m => m.Status === MemberStatus.Active && m.MemberID !== assignedMemberId)}
                     onClose={() => setShowReassignModal(false)}
@@ -177,7 +146,7 @@ const MatchDayControlPanel: React.FC<MatchDayControlPanelProps> = ({ match, team
             )}
 
             {showPenaltyModal && (
-                <ReassignModal
+                <PlayerSelectionModal
                     title="Apply Penalty To"
                     teamMembers={teamMembers.filter(m => m.Status === MemberStatus.Active)}
                     onClose={() => setShowPenaltyModal(false)}

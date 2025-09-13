@@ -119,7 +119,6 @@ const App: React.FC = () => {
         return { success: true, message: 'Password updated successfully!' };
     };
 
-    // FIX: Implement confirmKitDuty to resolve type error.
     const handleConfirmKitDuty = (matchDate: string) => {
         if (!currentUser) return;
         setKitTracker(prev => prev.map(k => 
@@ -130,16 +129,30 @@ const App: React.FC = () => {
         alert('You have confirmed kit duty. Thanks for taking responsibility!');
     };
 
-    // FIX: Implement declineKitDuty to resolve type error.
-    const handleDeclineKitDuty = (matchDate: string) => {
+    const handleDeclineKitDuty = (matchDate: string, newAssigneeId: string) => {
         if (!currentUser) return;
-        setKitTracker(prev => prev.map(k => 
-            k.Date === matchDate && k.ProvisionalAssignee === currentUser.MemberID 
-                ? { ...k, ProvisionalAssignee: '', Notes: `${k.Notes || ''} ${currentUser.Name} declined duty.`.trim(), Reason: AssignmentReason.Reassigned } 
-                : k
-        ));
-        alert('You have declined kit duty. The admin will be notified to reassign it.');
+        
+        const newAssignee = teamMembers.find(m => m.MemberID === newAssigneeId);
+        if (!newAssignee) {
+            alert("Selected player not found.");
+            return;
+        }
+
+        setKitTracker(prev => prev.map(k => {
+            if (k.Date === matchDate && k.ProvisionalAssignee === currentUser.MemberID) {
+                return {
+                    ...k,
+                    ProvisionalAssignee: newAssigneeId,
+                    KitResponsible: newAssigneeId,
+                    Reason: AssignmentReason.Reassigned,
+                    Notes: `${k.Notes || ''} Duty declined by ${currentUser.Name}, reassigned to ${newAssignee.Name}.`.trim()
+                };
+            }
+            return k;
+        }));
+        alert(`You have declined kit duty. It has been reassigned to ${newAssignee.Name}.`);
     };
+
 
     const handleCheckIn = (matchDate: string) => {
         const match = kitTracker.find(k => k.Date === matchDate);
@@ -453,11 +466,9 @@ const App: React.FC = () => {
         applyLatePenalty: handleApplyLatePenalty,
         reassignKit: handleReassignKit,
         confirmHandover: handleConfirmHandover,
-        // FIX: Add missing 'notifyNextPlayer' to adminActions to resolve type error.
         notifyNextPlayer: handleNotifyNextPlayer,
     };
     
-    // FIX: Add missing 'confirmKitDuty' and 'declineKitDuty' to userActions to resolve type error.
     const userActions = {
         confirmKitDuty: handleConfirmKitDuty,
         declineKitDuty: handleDeclineKitDuty,

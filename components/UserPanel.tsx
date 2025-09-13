@@ -11,7 +11,7 @@ interface UserPanelProps {
     arrivals: Arrival[];
     actions: {
         confirmKitDuty: (matchDate: string) => void;
-        declineKitDuty: (matchDate: string) => void;
+        declineKitDuty: (matchDate: string, newAssigneeId: string) => void;
         checkIn: (matchDate: string) => void;
         notifyNextPlayer: (matchDate: string) => void;
     };
