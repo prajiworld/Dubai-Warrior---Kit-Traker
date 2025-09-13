@@ -7,6 +7,7 @@ import { getDistanceInMeters, formatDate, formatTime } from '../utils/helpers';
 import { CheckCircleIcon, XCircleIcon } from './Icons';
 import StatusBadge from './StatusBadge';
 import DataManagementPanel from './DataManagementPanel';
+import KitHistoryPanel from './KitHistoryPanel';
 
 
 interface AdminPanelProps {
@@ -24,6 +25,8 @@ interface AdminPanelProps {
     updateMatchDetails: (date: string, newDetails: { lat: number; lng: number; radius: number; dueDate: string; }) => void;
     updateArrivalTime: (arrivalId: string, newTime: string) => void;
     updateTeamMember: (member: TeamMember) => void;
+    // History Action
+    notifyNextPlayer: () => void;
     // Master Data Actions
     addTeamMember: (memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => void;
     deleteTeamMember: (memberId: string) => void;
@@ -341,6 +344,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
         dashboard: <TodayDashboard {...props} todayMatch={todayMatch} arrivalsToday={arrivalsToday}/>,
         roster: <RosterControl {...props} />,
         matches: <MatchManagement {...props} />,
+        history: <KitHistoryPanel {...props} />,
         data: <DataManagementPanel 
                 teamMembers={teamMembers} 
                 kitTracker={kitTracker} 
@@ -364,10 +368,11 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
     return (
         <div className="space-y-6">
             <div className="border-b border-gray-200 dark:border-gray-700">
-                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
                     <button onClick={() => setActiveTab('dashboard')} className={getTabClass('dashboard')}>Dashboard</button>
                     <button onClick={() => setActiveTab('roster')} className={getTabClass('roster')}>Roster</button>
                     <button onClick={() => setActiveTab('matches')} className={getTabClass('matches')}>Matches</button>
+                    <button onClick={() => setActiveTab('history')} className={getTabClass('history')}>History</button>
                     <button onClick={() => setActiveTab('data')} className={getTabClass('data')}>Master Data</button>
                 </nav>
             </div>

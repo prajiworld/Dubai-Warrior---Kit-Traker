@@ -136,7 +136,7 @@ const App: React.FC = () => {
         const captain = teamMembers.find(m => m.Role === 'Captain');
         const number = captain?.PhoneNumber || "971501111111"; // Fallback number
         const text = encodeURIComponent("Hi Captain, I'm running late. ETA: ____");
-        window.open(`https://wa.me/${number}?text=${text}`, '_blank');
+        window.open(`https://wa.me/${number.replace(/\D/g, '')}?text=${text}`, '_blank');
     }, [teamMembers]);
 
 
@@ -207,6 +207,33 @@ const App: React.FC = () => {
             const message = `Current Kit Rotation:\n${rotation}`;
              window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
         }, [teamMembers]),
+        
+        notifyNextPlayer: useCallback(() => {
+            const nextMatch = kitTracker
+                .filter(k => k.Status === KitStatus.Upcoming)
+                .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0];
+
+            if (!nextMatch) {
+                alert("No upcoming matches found.");
+                return;
+            }
+
+            const nextPlayer = teamMembers.find(m => m.MemberID === nextMatch.ProvisionalAssignee);
+
+            if (!nextPlayer) {
+                alert("Could not find the assigned player for the next match.");
+                return;
+            }
+            
+            const phoneNumber = nextPlayer.PhoneNumber.replace(/\D/g, '');
+            if (!phoneNumber) {
+                alert(`Player ${nextPlayer.Name} does not have a phone number.`);
+                return;
+            }
+
+            const message = `Hi ${nextPlayer.Name}, this is a friendly reminder that you are on kit duty for the upcoming match on ${formatDate(nextMatch.Date)}. Please confirm.`;
+            window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
+        }, [kitTracker, teamMembers]),
 
         confirmHandover: useCallback((date: string) => {
             setKitTracker(prev => {
