@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { TeamMember, KitTrackerEntry } from '../types';
 import { MemberStatus, KitStatus } from '../types';
-import { PencilIcon, TrashIcon, XCircleIcon } from './Icons';
+import { PencilIcon, TrashIcon, XCircleIcon, DocumentArrowUpIcon } from './Icons';
 import StatusBadge from './StatusBadge';
+import { downloadFile, MEMBER_CSV_TEMPLATE, MATCH_CSV_TEMPLATE } from '../utils/helpers';
+
 
 const EMPTY_MEMBER: Omit<TeamMember, 'MemberID' | 'CompletedInRound'> = {
     Name: '', username: '', password: '', Role: 'Player', IsAdmin: false, PhoneNumber: '',
@@ -113,6 +115,64 @@ const MatchEditModal: React.FC<MatchEditModalProps> = ({ match, onSave, onClose 
     );
 }
 
+const CsvUploadSection: React.FC<{
+    title: string;
+    templateContent: string;
+    templateFileName: string;
+    onUpload: (data: any[]) => { added: number, skipped: number };
+}> = ({ title, templateContent, templateFileName, onUpload }) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleDownloadTemplate = () => {
+        downloadFile(templateContent, templateFileName, 'text/csv;charset=utf-8;');
+    };
+
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result;
+            if (typeof text !== 'string') return;
+            
+            const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+            if (lines.length < 2) {
+                alert('CSV file is empty or contains only headers.');
+                return;
+            }
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = lines.slice(1).map(line => {
+                const values = line.split(',');
+                return headers.reduce((obj, header, index) => {
+                    obj[header] = values[index]?.trim() || '';
+                    return obj;
+                }, {} as any);
+            });
+
+            const result = onUpload(data);
+            alert(`Upload complete!\n\n${result.added} records added.\n${result.skipped} records skipped (duplicates or errors).`);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ""; // Reset file input
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    return (
+        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <h4 className="font-semibold">{title}</h4>
+            <div className="mt-3 flex flex-col sm:flex-row gap-3">
+                <button onClick={handleDownloadTemplate} className="flex-1 text-center px-4 py-2 text-sm font-medium border border-gray-300 dark:border-gray-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600">Download Template</button>
+                <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" id={`csv-upload-${title.replace(/\s+/g, '-')}`} />
+                <label htmlFor={`csv-upload-${title.replace(/\s+/g, '-')}`} className="cursor-pointer flex-1 text-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 flex items-center justify-center gap-2">
+                    <DocumentArrowUpIcon className="w-5 h-5" />
+                    Upload CSV
+                </label>
+            </div>
+        </div>
+    );
+};
 
 interface DataManagementPanelProps {
     teamMembers: TeamMember[];
@@ -124,6 +184,8 @@ interface DataManagementPanelProps {
         addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn'>) => void;
         updateMatch: (match: KitTrackerEntry) => void;
         deleteMatch: (date: string) => void;
+        addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
+        addBulkMatches: (data: any[]) => { added: number, skipped: number };
     };
 }
 
@@ -153,8 +215,28 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
         <div className="space-y-8">
             <div className="p-4 bg-blue-50 dark:bg-gray-700/50 rounded-lg border border-blue-200 dark:border-blue-500/50">
                 <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200">Welcome to Master Data Management</h3>
-                <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">This panel allows you to directly manage the core data of the application. Use the tables below to add, edit, or delete team members and match schedules. All changes are saved automatically.</p>
+                <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">This panel allows you to directly manage the core data of the application. Use the tables below to add, edit, or delete team members and match schedules. You can also use the CSV upload tools for bulk data entry.</p>
             </div>
+            
+            {/* CSV Uploader */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                 <h3 className="text-xl font-bold mb-4">Bulk Data Upload</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <CsvUploadSection 
+                        title="Team Members"
+                        templateContent={MEMBER_CSV_TEMPLATE}
+                        templateFileName="team_members_template.csv"
+                        onUpload={actions.addBulkTeamMembers}
+                    />
+                    <CsvUploadSection 
+                        title="Match Schedules"
+                        templateContent={MATCH_CSV_TEMPLATE}
+                        templateFileName="match_schedules_template.csv"
+                        onUpload={actions.addBulkMatches}
+                    />
+                 </div>
+            </div>
+
             {/* Member Management */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                 <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold">Team Members</h3><button onClick={() => setEditingMember(EMPTY_MEMBER)} className={`${buttonClass} bg-brand-primary hover:bg-brand-secondary`}>Add New Member</button></div>
@@ -162,7 +244,7 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th className="px-4 py-2">Order</th><th className="px-4 py-2">Name</th><th className="px-4 py-2">Username</th><th className="px-4 py-2">Role</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-center">Actions</th></tr></thead>
                     <tbody>{teamMembers.sort((a,b) => a.Order - b.Order).map(m => (<tr key={m.MemberID} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-2 font-mono">{m.Order}</td><td className="px-4 py-2 font-medium">{m.Name}</td><td className="px-4 py-2">{m.username}</td><td className="px-4 py-2">{m.Role}</td><td className="px-4 py-2">{m.Status}</td>
-                        <td className="px-4 py-2 text-center flex items-center justify-center space-x-2"><button onClick={() => setEditingMember(m)} className="text-blue-600 hover:text-blue-800 p-1" aria-label={`Edit ${m.Name}`}><PencilIcon /></button><button onClick={() => actions.deleteTeamMember(m.MemberID)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${m.Name}`}><TrashIcon /></button></td></tr>))}</tbody>
+                        <td className="px-4 py-2 text-center flex items-center justify-center space-x-2"><button onClick={() => setEditingMember(m)} className="text-blue-600 hover:text-blue-800 p-1" aria-label={`Edit ${m.Name}`}><PencilIcon /></button><button onClick={() => window.confirm(`Are you sure you want to delete ${m.Name}?`) && actions.deleteTeamMember(m.MemberID)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${m.Name}`}><TrashIcon /></button></td></tr>))}</tbody>
                 </table></div>
             </div>
 
@@ -173,7 +255,7 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th className="px-4 py-2">Date</th><th className="px-4 py-2">Cutoff</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-center">Actions</th></tr></thead>
                     <tbody>{kitTracker.sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()).map(k => (<tr key={k.Date} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-2 font-medium">{k.Date}</td><td className="px-4 py-2">{k.CutoffTime}</td><td className="px-4 py-2"><StatusBadge status={k.Status} /></td>
-                        <td className="px-4 py-2 text-center flex items-center justify-center space-x-2"><button onClick={() => setEditingMatch(k)} className="text-blue-600 hover:text-blue-800 p-1" aria-label={`Edit match on ${k.Date}`}><PencilIcon /></button><button onClick={() => actions.deleteMatch(k.Date)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete match on ${k.Date}`}><TrashIcon /></button></td></tr>))}</tbody>
+                        <td className="px-4 py-2 text-center flex items-center justify-center space-x-2"><button onClick={() => setEditingMatch(k)} className="text-blue-600 hover:text-blue-800 p-1" aria-label={`Edit match on ${k.Date}`}><PencilIcon /></button><button onClick={() => window.confirm(`Are you sure you want to delete the match on ${k.Date}?`) && actions.deleteMatch(k.Date)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete match on ${k.Date}`}><TrashIcon /></button></td></tr>))}</tbody>
                 </table></div>
             </div>
 

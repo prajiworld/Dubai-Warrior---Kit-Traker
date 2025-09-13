@@ -44,6 +44,10 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
         }
     };
     
+    const inputClasses = "appearance-none block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white";
+    const labelClasses = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+
+
     return (
         <div
             role="dialog"
@@ -51,7 +55,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
             aria-labelledby="signup-title"
             className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75"
         >
-            <div className="relative w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-xl shadow-2xl m-4">
+            <div className="relative w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-xl shadow-2xl m-4 max-h-[90vh] overflow-y-auto">
                 <button
                     onClick={onClose}
                     className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
@@ -70,11 +74,26 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
                 </div>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <input className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm dark:bg-gray-700 dark:border-gray-600 text-white" type="text" placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} required />
-                    <input className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm dark:bg-gray-700 dark:border-gray-600 text-white" type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required />
-                    <input className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm dark:bg-gray-700 dark:border-gray-600 text-white" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
-                    <input className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm dark:bg-gray-700 dark:border-gray-600 text-white" type="password" placeholder="Confirm Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-                    <input className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm dark:bg-gray-700 dark:border-gray-600 text-white" type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} required />
+                    <div>
+                        <label htmlFor="name-signup" className={labelClasses}>Full Name</label>
+                        <input id="name-signup" name="name" className={inputClasses} type="text" placeholder="e.g. Ben Kenobi" value={name} onChange={e => setName(e.target.value)} required />
+                    </div>
+                     <div>
+                        <label htmlFor="username-signup" className={labelClasses}>Username</label>
+                        <input id="username-signup" name="username" className={inputClasses} type="text" placeholder="e.g. ben" value={username} onChange={e => setUsername(e.target.value)} required />
+                    </div>
+                     <div>
+                        <label htmlFor="password-signup" className={labelClasses}>Password</label>
+                        <input id="password-signup" name="password" className={inputClasses} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+                    </div>
+                    <div>
+                        <label htmlFor="confirm-password-signup" className={labelClasses}>Confirm Password</label>
+                        <input id="confirm-password-signup" name="confirmPassword" className={inputClasses} type="password" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+                    </div>
+                    <div>
+                        <label htmlFor="phone-signup" className={labelClasses}>Phone Number</label>
+                        <input id="phone-signup" name="phoneNumber" className={inputClasses} type="tel" placeholder="+971501234567" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} required />
+                    </div>
                     
                     {error && <p className="text-sm text-red-500 text-center font-medium">{error}</p>}
                     

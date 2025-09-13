@@ -23,7 +23,6 @@ interface AdminPanelProps {
     resetRound: () => void;
     updateMatchDetails: (date: string, newDetails: { lat: number; lng: number; radius: number; dueDate: string; }) => void;
     updateArrivalTime: (arrivalId: string, newTime: string) => void;
-    // FIX: Unify updateTeamMember to always use the full TeamMember object, resolving conflicts between child components.
     updateTeamMember: (member: TeamMember) => void;
     // Master Data Actions
     addTeamMember: (memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => void;
@@ -31,6 +30,9 @@ interface AdminPanelProps {
     addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn'>) => void;
     updateMatch: (match: KitTrackerEntry) => void;
     deleteMatch: (date: string) => void;
+    // Bulk Actions
+    addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
+    addBulkMatches: (data: any[]) => { added: number, skipped: number };
   }
 }
 
@@ -153,7 +155,6 @@ const TodayDashboard: React.FC<Omit<AdminPanelProps, 'actions'> & { todayMatch?:
 
 const EditableMemberRow: React.FC<{
     member: TeamMember;
-    // FIX: Change onSave signature to accept the full TeamMember object for consistency.
     onSave: (member: TeamMember) => void;
 }> = ({ member, onSave }) => {
     const [name, setName] = useState(member.Name);
@@ -168,7 +169,6 @@ const EditableMemberRow: React.FC<{
     }, [name, phone, ownsCar, status, member]);
 
     const handleSave = () => {
-        // FIX: Construct the full updated member object to pass to the unified onSave handler.
         onSave({ ...member, Name: name, PhoneNumber: phone, OwnsCar: ownsCar, Status: status });
         setIsDirty(false);
     }
@@ -346,12 +346,13 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                 kitTracker={kitTracker} 
                 actions={{
                     addTeamMember: actions.addTeamMember,
-                    // FIX: Pass the correct update function to DataManagementPanel. No cast needed now.
                     updateTeamMember: actions.updateTeamMember,
                     deleteTeamMember: actions.deleteTeamMember,
                     addMatch: actions.addMatch,
                     updateMatch: actions.updateMatch,
                     deleteMatch: actions.deleteMatch,
+                    addBulkTeamMembers: actions.addBulkTeamMembers,
+                    addBulkMatches: actions.addBulkMatches,
                 }} 
               />,
     };
