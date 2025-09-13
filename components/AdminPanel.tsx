@@ -29,7 +29,7 @@ interface AdminPanelProps {
         addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
         addBulkMatches: (data: any[]) => { added: number, skipped: number };
         // Schedule Panel action
-        assignKitDuty: (matchDate: string, memberId: string) => void;
+        assignPlayerToMatch: (memberId: string, matchDate: string) => void;
         // MatchDayControlPanel actions
         applyLatePenalty: (matchDate: string) => void;
         reassignKit: (matchDate: string, memberId: string) => void;
@@ -72,7 +72,7 @@ const AdminPanel: React.FC<AdminPanelProps> = (props) => {
                         teamMembers={props.teamMembers} 
                         kitTracker={props.kitTracker} 
                         isAdmin={true}
-                        onAssign={props.actions.assignKitDuty}
+                        onAssign={props.actions.assignPlayerToMatch}
                     />
                 )}
                 {activeTab === 'match_control' && (

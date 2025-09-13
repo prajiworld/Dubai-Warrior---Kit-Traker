@@ -89,6 +89,19 @@ const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMe
     const provisionalName = getMemberName(ProvisionalAssignee);
     const isDecided = !!KitResponsible;
 
+    // New logic to determine display status
+    const today = new Date().toISOString().split('T')[0];
+    let displayStatus: KitStatus | 'Scheduled' | 'Match Day' = Status;
+    if (Status === KitStatus.Upcoming) {
+        if (date === today) {
+            displayStatus = 'Match Day';
+        } else {
+            // Since this component only shows the *next* match, if it's upcoming and not today, it must be "Scheduled"
+            displayStatus = 'Scheduled';
+        }
+    }
+
+
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
             <div className="flex justify-between items-start">
@@ -96,7 +109,7 @@ const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMe
                     <h3 className="text-xl font-bold">Next Match</h3>
                     <p className="text-lg font-semibold text-brand-primary">{formatDate(date)}</p>
                 </div>
-                <StatusBadge status={Status} />
+                <StatusBadge status={displayStatus} />
             </div>
             
             <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">

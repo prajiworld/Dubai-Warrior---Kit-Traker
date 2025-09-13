@@ -245,15 +245,27 @@ const App: React.FC = () => {
         setArrivals(prev => prev.filter(a => a.MatchDate !== date));
     };
     
-    const handleAssignKitDuty = (matchDate: string, memberId: string) => {
-        setKitTracker(prev => prev.map(m => 
-            m.Date === matchDate ? { 
-                ...m, 
-                ProvisionalAssignee: memberId, 
-                KitResponsible: '', // Reset responsible when re-assigning provisionally
-                Reason: AssignmentReason.Rotation 
-            } : m
-        ));
+    const assignPlayerToMatch = (memberId: string, newMatchDate: string) => {
+        setKitTracker(prev => {
+            return prev.map(match => {
+                let updatedMatch = { ...match };
+
+                // Un-assign this player from their old match, if any.
+                if (updatedMatch.ProvisionalAssignee === memberId) {
+                    updatedMatch.ProvisionalAssignee = '';
+                    updatedMatch.Reason = AssignmentReason.Rotation;
+                }
+
+                // Assign this player to the new match. This overwrites anyone else who was there.
+                if (updatedMatch.Date === newMatchDate) {
+                    updatedMatch.ProvisionalAssignee = memberId;
+                    updatedMatch.KitResponsible = ''; // Reset responsible when re-assigning
+                    updatedMatch.Reason = AssignmentReason.Rotation;
+                }
+                
+                return updatedMatch;
+            });
+        });
     };
 
     const handleApplyLatePenalty = (matchDate: string) => {
@@ -378,7 +390,7 @@ const App: React.FC = () => {
         deleteMatch: handleDeleteMatch,
         addBulkTeamMembers: (data: any) => handleBulkUpload(data, 'members'),
         addBulkMatches: (data: any) => handleBulkUpload(data, 'matches'),
-        assignKitDuty: handleAssignKitDuty,
+        assignPlayerToMatch: assignPlayerToMatch,
         // MatchDayControlPanel
         applyLatePenalty: handleApplyLatePenalty,
         reassignKit: handleReassignKit,

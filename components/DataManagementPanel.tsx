@@ -211,6 +211,12 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
         setEditingMatch(null);
     };
 
+    // Find the earliest upcoming match date for status calculation
+    const earliestUpcomingDate = kitTracker
+        .filter(k => k.Status === KitStatus.Upcoming)
+        .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0]?.Date;
+    const today = new Date().toISOString().split('T')[0];
+
     return (
         <div className="space-y-8">
             <div className="p-4 bg-blue-50 dark:bg-gray-700/50 rounded-lg border border-blue-200 dark:border-blue-500/50">
@@ -253,13 +259,26 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
                 <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold">Match Schedules</h3><button onClick={() => setEditingMatch(EMPTY_MATCH)} className={`${buttonClass} bg-brand-primary hover:bg-brand-secondary`}>Add New Match</button></div>
                 <div className="overflow-x-auto"><table className="w-full text-left text-sm">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th className="px-4 py-2">Date</th><th className="px-4 py-2">Cutoff</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-center">Actions</th></tr></thead>
-                    <tbody>{kitTracker.sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()).map(k => (<tr key={k.Date} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-4 py-2 font-medium">{k.Date}</td><td className="px-4 py-2">{k.CutoffTime}</td><td className="px-4 py-2"><StatusBadge status={k.Status} /></td>
+                    <tbody>{kitTracker.sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()).map(k => {
+                        
+                        // New logic to determine display status
+                        let displayStatus: KitStatus | 'Scheduled' | 'Match Day' = k.Status;
+                        if (k.Status === KitStatus.Upcoming) {
+                            if (k.Date === today) {
+                                displayStatus = 'Match Day';
+                            } else if (k.Date === earliestUpcomingDate) {
+                                displayStatus = 'Scheduled';
+                            }
+                        }
+                        
+                        return (<tr key={k.Date} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-4 py-2 font-medium">{k.Date}</td><td className="px-4 py-2">{k.CutoffTime}</td><td className="px-4 py-2"><StatusBadge status={displayStatus} /></td>
                         <td className="px-4 py-2 text-center flex items-center justify-center space-x-2">
                             <button onClick={() => setEditingMatch(k)} className="text-blue-600 hover:text-blue-800 p-1" aria-label={`Edit match on ${k.Date}`}><PencilIcon /></button>
                             <button onClick={() => window.confirm(`Are you sure you want to delete match on ${k.Date}?`) && actions.deleteMatch(k.Date)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete match on ${k.Date}`}><TrashIcon /></button>
                         </td>
-                    </tr>))}
+                    </tr>);
+                    })}
                     </tbody>
                 </table></div>
             </div>

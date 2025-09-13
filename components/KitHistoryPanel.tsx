@@ -23,6 +23,10 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
     .filter(k => k.Status === KitStatus.Upcoming)
     .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0];
 
+  // Find the earliest upcoming match date for status calculation
+  const earliestUpcomingDate = upcomingMatch?.Date;
+  const today = new Date().toISOString().split('T')[0];
+
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -60,6 +64,16 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
                 const responsibleName = getMemberName(entry.KitResponsible);
                 const isReassigned = entry.KitResponsible && entry.KitResponsible !== entry.ProvisionalAssignee;
 
+                // New logic to determine display status for each row
+                let displayStatus: KitStatus | 'Scheduled' | 'Match Day' = entry.Status;
+                if (entry.Status === KitStatus.Upcoming) {
+                    if (entry.Date === today) {
+                        displayStatus = 'Match Day';
+                    } else if (entry.Date === earliestUpcomingDate) {
+                        displayStatus = 'Scheduled';
+                    }
+                }
+
                 return (
                   <tr key={entry.Date} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-4 py-3 font-medium">{formatDate(entry.Date)}</td>
@@ -70,7 +84,7 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
                     <td className="px-4 py-3">{entry.Reason}</td>
                     <td className="px-4 py-3 text-center">{entry.WeeksHeld || '-'}</td>
                     <td className="px-4 py-3 text-center">
-                      <StatusBadge status={entry.Status} />
+                      <StatusBadge status={displayStatus} />
                     </td>
                   </tr>
                 );
