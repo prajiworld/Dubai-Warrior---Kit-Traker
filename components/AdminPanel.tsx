@@ -1,25 +1,18 @@
+
 import React, { useState } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
 import { KitStatus } from '../types';
-import UserPanel from './UserPanel';
 import DataManagementPanel from './DataManagementPanel';
-import KitRotationSchedulePanel from './KitRotationSchedulePanel';
 import MatchDayControlPanel from './MatchDayControlPanel';
+import KitRotationSchedulePanel from './KitRotationSchedulePanel';
+import KitHistoryPanel from './KitHistoryPanel';
 
-type AdminTab = 'dashboard' | 'schedule' | 'match_control' | 'data';
 
 interface AdminPanelProps {
-    currentUser: TeamMember;
     teamMembers: TeamMember[];
     kitTracker: KitTrackerEntry[];
     arrivals: Arrival[];
     actions: {
-        // UserPanel actions
-        confirmKitDuty: (matchDate: string) => void;
-        declineKitDuty: (matchDate: string) => void;
-        checkIn: (matchDate: string) => void;
-        notifyNextPlayer: (matchDate: string) => void;
-        // DataManagementPanel actions
         addTeamMember: (memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => void;
         updateTeamMember: (member: TeamMember) => void;
         deleteTeamMember: (memberId: string) => void;
@@ -28,69 +21,110 @@ interface AdminPanelProps {
         deleteMatch: (date: string) => void;
         addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
         addBulkMatches: (data: any[]) => { added: number, skipped: number };
-        // Schedule Panel action
         assignPlayerToMatch: (memberId: string, matchDate: string) => void;
-        // MatchDayControlPanel actions
-        applyLatePenalty: (matchDate: string) => void;
-        reassignKit: (matchDate: string, memberId: string) => void;
+        confirmMatchStatus: (matchDate: string, newStatus: KitStatus.Upcoming | KitStatus.NoPlay) => void;
+        applyLatePenalty: (matchDate: string, memberId: string) => void;
+        reassignKit: (matchDate: string, newMemberId: string) => void;
         confirmHandover: (matchDate: string) => void;
-        notifyPlayer: (matchDate: string) => void;
+        notifyNextPlayer: (matchDate: string) => void;
     };
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = (props) => {
+type AdminTab = 'dashboard'| 'schedule' | 'history' | 'dataManagement';
+
+const AdminPanel: React.FC<AdminPanelProps> = ({ teamMembers, kitTracker, arrivals, actions }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
 
-    const upcomingMatch = props.kitTracker
-        .filter(k => k.Status === KitStatus.Upcoming)
-        .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    const tabStyles = {
-        base: "px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent",
-        active: "bg-brand-primary text-white",
-        inactive: "text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600",
-    };
+    const sortedMatches = [...kitTracker].sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime());
+
+    // Find the very next match that is 'Scheduled' or 'Upcoming'
+    const nextMatchForControl = sortedMatches.find(k => {
+        const matchDate = new Date(k.Date);
+        matchDate.setHours(0, 0, 0, 0);
+        return matchDate >= today && [KitStatus.Scheduled, KitStatus.Upcoming].includes(k.Status);
+    });
+    
+    // If no future matches, find the most recent past match to show its final state
+    const mostRecentPastMatch = sortedMatches.filter(k => {
+         const matchDate = new Date(k.Date);
+         matchDate.setHours(0,0,0,0);
+         return matchDate < today;
+    }).pop();
+    
+    const matchForControlPanel = nextMatchForControl || mostRecentPastMatch;
+
+    const TabButton: React.FC<{ tabName: AdminTab, label: string }> = ({ tabName, label }) => (
+        <button
+            onClick={() => setActiveTab(tabName)}
+            className={`${
+                activeTab === tabName
+                    ? 'border-brand-accent text-brand-primary dark:text-brand-accent'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500'
+            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            aria-current={activeTab === tabName ? 'page' : undefined}
+        >
+            {label}
+        </button>
+    );
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-2 p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-                {(['dashboard', 'schedule', 'match_control', 'data'] as AdminTab[]).map(tab => (
-                     <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`${tabStyles.base} ${activeTab === tab ? tabStyles.active : tabStyles.inactive}`}
-                    >
-                        {tab.replace('_', ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                    </button>
-                ))}
+            <div className="border-b border-gray-200 dark:border-gray-700">
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                    <TabButton tabName="dashboard" label="Dashboard" />
+                    <TabButton tabName="schedule" label="Schedule" />
+                    <TabButton tabName="history" label="History" />
+                    <TabButton tabName="dataManagement" label="Master Data" />
+                </nav>
             </div>
 
-            <div className="mt-4">
-                {activeTab === 'dashboard' && <UserPanel {...props} />}
-                {activeTab === 'schedule' && (
-                    <KitRotationSchedulePanel 
-                        teamMembers={props.teamMembers} 
-                        kitTracker={props.kitTracker} 
-                        isAdmin={true}
-                        onAssign={props.actions.assignPlayerToMatch}
-                    />
-                )}
-                {activeTab === 'match_control' && (
-                    upcomingMatch ? (
+            <div>
+                 {activeTab === 'dashboard' && (
+                    matchForControlPanel ? (
                         <MatchDayControlPanel
-                            match={upcomingMatch}
-                            arrivals={props.arrivals.filter(a => a.MatchDate === upcomingMatch.Date)}
-                            teamMembers={props.teamMembers}
-                            actions={props.actions}
+                            match={matchForControlPanel}
+                            teamMembers={teamMembers}
+                            arrivals={arrivals.filter(a => a.MatchDate === matchForControlPanel.Date)}
+                            actions={{
+                                confirmMatchStatus: actions.confirmMatchStatus,
+                                applyLatePenalty: actions.applyLatePenalty,
+                                reassignKit: actions.reassignKit,
+                                confirmHandover: actions.confirmHandover,
+                                notifyPlayer: actions.notifyNextPlayer,
+                            }}
                         />
                     ) : (
                          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
-                            <h3 className="text-lg font-semibold">No Upcoming Match</h3>
-                            <p className="text-gray-500 mt-1">Match Day Control is only available when a match is scheduled.</p>
+                            <h3 className="text-xl font-bold">No Matches Found</h3>
+                            <p className="mt-2 text-gray-600 dark:text-gray-400">There are no upcoming or past matches to display. Add one from the Master Data tab.</p>
                         </div>
                     )
                 )}
-                {activeTab === 'data' && <DataManagementPanel teamMembers={props.teamMembers} kitTracker={props.kitTracker} actions={props.actions} />}
+                {activeTab === 'schedule' && (
+                    <KitRotationSchedulePanel
+                        teamMembers={teamMembers}
+                        kitTracker={kitTracker}
+                        isAdmin={true}
+                        onAssign={actions.assignPlayerToMatch}
+                    />
+                )}
+                {activeTab === 'history' && (
+                    <KitHistoryPanel
+                        teamMembers={teamMembers}
+                        kitTracker={kitTracker}
+                        actions={{ notifyNextPlayer: actions.notifyNextPlayer }}
+                    />
+                )}
+                {activeTab === 'dataManagement' && (
+                    <DataManagementPanel
+                        teamMembers={teamMembers}
+                        kitTracker={kitTracker}
+                        actions={actions}
+                    />
+                )}
             </div>
         </div>
     );

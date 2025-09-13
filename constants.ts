@@ -19,8 +19,8 @@ const nextWeekStr = nextWeek.toISOString().split('T')[0];
 
 export const INITIAL_KIT_TRACKER: KitTrackerEntry[] = [
     { Date: yesterdayStr, DueDate: yesterdayStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user1", KitResponsible: "user1", TakenOnBehalfOf: "", Status: KitStatus.Completed, WeeksHeld: 1, Notes: "Last week's match", MatchOn: true, Reason: AssignmentReason.Rotation },
-    { Date: todayStr, DueDate: todayStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user2", KitResponsible: "", TakenOnBehalfOf: "", Status: KitStatus.Upcoming, WeeksHeld: 0, Notes: "Today's big game!", MatchOn: false, Reason: AssignmentReason.Rotation },
-    { Date: nextWeekStr, DueDate: nextWeekStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user3", KitResponsible: "", TakenOnBehalfOf: "", Status: KitStatus.Upcoming, WeeksHeld: 0, Notes: "Next week", MatchOn: false, Reason: AssignmentReason.Rotation },
+    { Date: todayStr, DueDate: todayStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user2", KitResponsible: "", TakenOnBehalfOf: "", Status: KitStatus.Scheduled, WeeksHeld: 0, Notes: "Today's big game!", MatchOn: false, Reason: AssignmentReason.Rotation },
+    { Date: nextWeekStr, DueDate: nextWeekStr, GroundLatLong: { lat: 25.0763, lng: 55.1886 }, GeoRadiusMeters: 250, CutoffTime: "22:45", ProvisionalAssignee: "user3", KitResponsible: "", TakenOnBehalfOf: "", Status: KitStatus.Scheduled, WeeksHeld: 0, Notes: "Next week", MatchOn: false, Reason: AssignmentReason.Rotation },
 ];
 
 export const INITIAL_ARRIVALS: Arrival[] = [

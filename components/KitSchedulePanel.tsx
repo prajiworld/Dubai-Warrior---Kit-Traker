@@ -20,7 +20,7 @@ interface KitSchedulePanelProps {
 
 const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMembers, kitTracker, arrivals, actions }) => {
     const upcomingMatch = kitTracker
-        .filter(k => [KitStatus.Upcoming, KitStatus.NoPlay].includes(k.Status))
+        .filter(k => [KitStatus.Upcoming, KitStatus.Scheduled].includes(k.Status))
         .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0];
 
     const getMemberName = (memberId: string) => teamMembers.find(m => m.MemberID === memberId)?.Name || 'N/A';
@@ -47,6 +47,7 @@ const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMe
     };
 
     const renderCheckIn = (match: KitTrackerEntry) => {
+        // Check-in is only available for confirmed, upcoming matches.
         if (!match || match.Status !== KitStatus.Upcoming || !match.MatchOn) return null;
         
         const myArrival = arrivals.find(a => a.MatchDate === match.Date && a.Member === currentUser.MemberID);
@@ -89,16 +90,10 @@ const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMe
     const provisionalName = getMemberName(ProvisionalAssignee);
     const isDecided = !!KitResponsible;
 
-    // New logic to determine display status
     const today = new Date().toISOString().split('T')[0];
-    let displayStatus: KitStatus | 'Scheduled' | 'Match Day' = Status;
-    if (Status === KitStatus.Upcoming) {
-        if (date === today) {
-            displayStatus = 'Match Day';
-        } else {
-            // Since this component only shows the *next* match, if it's upcoming and not today, it must be "Scheduled"
-            displayStatus = 'Scheduled';
-        }
+    let displayStatus: KitStatus | 'Match Day' = Status;
+    if (Status === KitStatus.Upcoming && date === today) {
+        displayStatus = 'Match Day';
     }
 
 
@@ -116,7 +111,7 @@ const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMe
                 <div className="flex justify-between">
                     <span className="font-semibold text-gray-600 dark:text-gray-300">Kit Duty:</span>
                     <span className={`font-bold ${isDecided ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
-                        {isDecided ? responsibleName : `${provisionalName} (Pending)`}
+                        {isDecided ? responsibleName : `${provisionalName || 'Not Assigned'} ${Status === KitStatus.Scheduled ? '(Scheduled)' : '(Pending)'}`}
                     </span>
                 </div>
                 <div className="flex justify-between">

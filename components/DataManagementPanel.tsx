@@ -211,10 +211,6 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
         setEditingMatch(null);
     };
 
-    // Find the earliest upcoming match date for status calculation
-    const earliestUpcomingDate = kitTracker
-        .filter(k => k.Status === KitStatus.Upcoming)
-        .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0]?.Date;
     const today = new Date().toISOString().split('T')[0];
 
     return (
@@ -261,14 +257,9 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th className="px-4 py-2">Date</th><th className="px-4 py-2">Cutoff</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-center">Actions</th></tr></thead>
                     <tbody>{kitTracker.sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()).map(k => {
                         
-                        // New logic to determine display status
-                        let displayStatus: KitStatus | 'Scheduled' | 'Match Day' = k.Status;
-                        if (k.Status === KitStatus.Upcoming) {
-                            if (k.Date === today) {
-                                displayStatus = 'Match Day';
-                            } else if (k.Date === earliestUpcomingDate) {
-                                displayStatus = 'Scheduled';
-                            }
+                        let displayStatus: KitStatus | 'Match Day' = k.Status;
+                        if (k.Status === KitStatus.Upcoming && k.Date === today) {
+                            displayStatus = 'Match Day';
                         }
                         
                         return (<tr key={k.Date} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">

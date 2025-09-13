@@ -1,3 +1,5 @@
+import React from 'react';
+
 export enum MemberStatus {
   Active = "Active",
   Injured = "Injured",
@@ -5,6 +7,7 @@ export enum MemberStatus {
 }
 
 export enum KitStatus {
+  Scheduled = "Scheduled", // New status for matches pending admin confirmation
   Upcoming = "Upcoming",
   Completed = "Completed",
   Missed = "Missed",

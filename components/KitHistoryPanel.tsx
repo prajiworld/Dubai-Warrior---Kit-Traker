@@ -20,11 +20,9 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
   };
   
   const upcomingMatch = kitTracker
-    .filter(k => k.Status === KitStatus.Upcoming)
+    .filter(k => [KitStatus.Upcoming, KitStatus.Scheduled].includes(k.Status))
     .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0];
 
-  // Find the earliest upcoming match date for status calculation
-  const earliestUpcomingDate = upcomingMatch?.Date;
   const today = new Date().toISOString().split('T')[0];
 
   return (
@@ -64,14 +62,9 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
                 const responsibleName = getMemberName(entry.KitResponsible);
                 const isReassigned = entry.KitResponsible && entry.KitResponsible !== entry.ProvisionalAssignee;
 
-                // New logic to determine display status for each row
-                let displayStatus: KitStatus | 'Scheduled' | 'Match Day' = entry.Status;
-                if (entry.Status === KitStatus.Upcoming) {
-                    if (entry.Date === today) {
-                        displayStatus = 'Match Day';
-                    } else if (entry.Date === earliestUpcomingDate) {
-                        displayStatus = 'Scheduled';
-                    }
+                let displayStatus: KitStatus | 'Match Day' = entry.Status;
+                if (entry.Status === KitStatus.Upcoming && entry.Date === today) {
+                    displayStatus = 'Match Day';
                 }
 
                 return (
@@ -79,7 +72,7 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
                     <td className="px-4 py-3 font-medium">{formatDate(entry.Date)}</td>
                     <td className="px-4 py-3">{provisionalName}</td>
                     <td className={`px-4 py-3 ${isReassigned ? 'font-bold' : ''}`}>
-                      {responsibleName || (entry.Status === KitStatus.Upcoming ? 'Not Decided' : 'N/A')}
+                      {responsibleName || ([KitStatus.Upcoming, KitStatus.Scheduled].includes(entry.Status) ? 'Not Decided' : 'N/A')}
                     </td>
                     <td className="px-4 py-3">{entry.Reason}</td>
                     <td className="px-4 py-3 text-center">{entry.WeeksHeld || '-'}</td>

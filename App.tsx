@@ -1,435 +1,467 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from './types';
 import { MemberStatus, KitStatus, AssignmentReason } from './types';
 import { INITIAL_TEAM_MEMBERS, INITIAL_KIT_TRACKER, INITIAL_ARRIVALS } from './constants';
 import LoginPage from './components/LoginPage';
-import SignUpModal, { NewUserData } from './components/SignUpModal';
-import ForgotPasswordModal from './components/ForgotPasswordModal';
 import DashboardShell from './components/DashboardShell';
 import UserPanel from './components/UserPanel';
 import AdminPanel from './components/AdminPanel';
 import UserProfile from './components/UserProfile';
-import { getDistanceInMeters } from './utils/helpers';
-
-
-// Custom hook for localStorage
-function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-    const [storedValue, setStoredValue] = useState<T>(() => {
-        try {
-            const item = window.localStorage.getItem(key);
-            return item ? JSON.parse(item) : initialValue;
-        } catch (error) {
-            console.log(error);
-            return initialValue;
-        }
-    });
-
-    const setValue = (value: T | ((val: T) => T)) => {
-        try {
-            const valueToStore = value instanceof Function ? value(storedValue) : value;
-            setStoredValue(valueToStore);
-            window.localStorage.setItem(key, JSON.stringify(valueToStore));
-        } catch (error) {
-            console.log(error);
-        }
-    };
-
-    return [storedValue, setValue];
-}
-
+import SignUpModal, { type NewUserData } from './components/SignUpModal';
+import ForgotPasswordModal from './components/ForgotPasswordModal';
+import { getDistanceInMeters, formatDate } from './utils/helpers';
 
 const App: React.FC = () => {
-    // App State
-    const [teamMembers, setTeamMembers] = useLocalStorage<TeamMember[]>('teamMembers', INITIAL_TEAM_MEMBERS);
-    const [kitTracker, setKitTracker] = useLocalStorage<KitTrackerEntry[]>('kitTracker', INITIAL_KIT_TRACKER);
-    const [arrivals, setArrivals] = useLocalStorage<Arrival[]>('arrivals', INITIAL_ARRIVALS);
-    const [currentUser, setCurrentUser] = useLocalStorage<TeamMember | null>('currentUser', null);
-    
-    // UI State
-    const [currentView, setCurrentView] = useState<'dashboard' | 'profile'>('dashboard');
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+    const [kitTracker, setKitTracker] = useState<KitTrackerEntry[]>([]);
+    const [arrivals, setArrivals] = useState<Arrival[]>([]);
+    const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
+    const [currentPage, setCurrentPage] = useState('dashboard');
     const [showSignUp, setShowSignUp] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-    // Effect to update match statuses based on dates (pseudo-cron job)
-    useEffect(() => {
-        const today = new Date().toISOString().split('T')[0];
-        setKitTracker(prev => prev.map(match => {
-            if (match.Status === KitStatus.Upcoming && match.Date < today) {
-                // If match passed and no one was responsible, mark as missed. Otherwise complete.
-                return { ...match, Status: match.KitResponsible ? KitStatus.Completed : KitStatus.Missed };
-            }
-            return match;
-        }));
+    const loadData = useCallback(() => {
+        try {
+            const storedMembers = localStorage.getItem('kit-tracker-team');
+            const storedKit = localStorage.getItem('kit-tracker-matches');
+            const storedArrivals = localStorage.getItem('kit-tracker-arrivals');
+
+            setTeamMembers(storedMembers ? JSON.parse(storedMembers) : INITIAL_TEAM_MEMBERS);
+            setKitTracker(storedKit ? JSON.parse(storedKit) : INITIAL_KIT_TRACKER);
+            setArrivals(storedArrivals ? JSON.parse(storedArrivals) : INITIAL_ARRIVALS);
+        } catch (error) {
+            console.error("Failed to load data from localStorage", error);
+            setTeamMembers(INITIAL_TEAM_MEMBERS);
+            setKitTracker(INITIAL_KIT_TRACKER);
+            setArrivals(INITIAL_ARRIVALS);
+        }
+        setIsDataLoaded(true);
     }, []);
 
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
-    // --- Authentication Actions ---
+    useEffect(() => {
+        if (isDataLoaded) {
+            try {
+                localStorage.setItem('kit-tracker-team', JSON.stringify(teamMembers));
+                localStorage.setItem('kit-tracker-matches', JSON.stringify(kitTracker));
+                localStorage.setItem('kit-tracker-arrivals', JSON.stringify(arrivals));
+            } catch (error) {
+                console.error("Failed to save data to localStorage", error);
+            }
+        }
+    }, [teamMembers, kitTracker, arrivals, isDataLoaded]);
+    
+    // AUTHENTICATION
     const handleLogin = (username: string, password: string): boolean => {
         const user = teamMembers.find(m => m.username.toLowerCase() === username.toLowerCase() && m.password === password);
         if (user) {
             setCurrentUser(user);
+            setCurrentPage('dashboard');
             return true;
         }
         return false;
     };
-    
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setCurrentView('dashboard');
-    };
-
+    const handleLogout = () => setCurrentUser(null);
     const handleResetData = () => {
-        if(window.confirm("Are you sure you want to reset all application data to the initial state? This cannot be undone.")) {
+        if (window.confirm("Are you sure you want to reset all application data to its initial state? This cannot be undone.")) {
             localStorage.clear();
-            window.location.reload();
+            loadData();
+            setCurrentUser(null);
+            alert("Application data has been reset.");
         }
     };
-    
-    const handleSignUp = (userData: NewUserData): boolean => {
-        const usernameExists = teamMembers.some(m => m.username.toLowerCase() === userData.username.toLowerCase());
-        if (usernameExists) return false;
 
-        const newMember: TeamMember = {
+    const handleSignUp = (userData: NewUserData): boolean => {
+        if (teamMembers.some(m => m.username.toLowerCase() === userData.username.toLowerCase())) {
+            return false;
+        }
+        const maxOrder = Math.max(...teamMembers.map(m => m.Order), 0);
+        const newUser: TeamMember = {
             ...userData,
-            MemberID: `user-${Date.now()}`,
+            MemberID: `user${Date.now()}`,
             Role: 'Player',
             IsAdmin: false,
             OwnsCar: false,
             Status: MemberStatus.Active,
-            RotationEligible: 'Yes',
+            RotationEligible: 'No',
             PenaltyEligible: true,
-            Order: Math.max(...teamMembers.map(m => m.Order), 0) + 1,
+            Order: maxOrder + 1,
             CompletedInRound: false,
             Notes: 'New user',
         };
-        setTeamMembers(prev => [...prev, newMember]);
-        // Log in the new user
-        setCurrentUser(newMember);
+        setTeamMembers(prev => [...prev, newUser]);
+        setCurrentUser(newUser);
+        setCurrentPage('dashboard');
         setShowSignUp(false);
         return true;
     };
     
+    // USER ACTIONS
     const handleUpdateProfile = (updatedData: Pick<TeamMember, 'PhoneNumber' | 'OwnsCar'>) => {
         if (!currentUser) return;
         const updatedUser = { ...currentUser, ...updatedData };
         setCurrentUser(updatedUser);
-        setTeamMembers(prev => prev.map(m => m.MemberID === updatedUser.MemberID ? updatedUser : m));
-        alert("Profile updated successfully!");
-        setCurrentView('dashboard');
+        setTeamMembers(prev => prev.map(m => m.MemberID === currentUser.MemberID ? updatedUser : m));
+        alert('Profile updated!');
+        setCurrentPage('dashboard');
+    };
+    
+    // FIX: Implement confirmKitDuty to resolve type error.
+    const handleConfirmKitDuty = (matchDate: string) => {
+        if (!currentUser) return;
+        setKitTracker(prev => prev.map(k => 
+            k.Date === matchDate && k.ProvisionalAssignee === currentUser.MemberID 
+                ? { ...k, KitResponsible: currentUser.MemberID } 
+                : k
+        ));
+        alert('You have confirmed kit duty. Thanks for taking responsibility!');
     };
 
-
-    // --- User Actions ---
-    const handleCheckIn = (matchDate: string) => {
+    // FIX: Implement declineKitDuty to resolve type error.
+    const handleDeclineKitDuty = (matchDate: string) => {
         if (!currentUser) return;
-        
+        setKitTracker(prev => prev.map(k => 
+            k.Date === matchDate && k.ProvisionalAssignee === currentUser.MemberID 
+                ? { ...k, ProvisionalAssignee: '', Notes: `${k.Notes || ''} ${currentUser.Name} declined duty.`.trim(), Reason: AssignmentReason.Reassigned } 
+                : k
+        ));
+        alert('You have declined kit duty. The admin will be notified to reassign it.');
+    };
+
+    const handleCheckIn = (matchDate: string) => {
+        const match = kitTracker.find(k => k.Date === matchDate);
+        if (!match || !currentUser) return;
+
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
-                const match = kitTracker.find(k => k.Date === matchDate);
-                if (!match) return;
-
                 const distance = getDistanceInMeters(latitude, longitude, match.GroundLatLong.lat, match.GroundLatLong.lng);
-
-                if (distance > match.GeoRadiusMeters) {
-                    alert(`Check-in failed. You are ${Math.round(distance)} meters away from the ground. You must be within ${match.GeoRadiusMeters} meters.`);
-                    return;
+                
+                if (distance <= match.GeoRadiusMeters) {
+                    const now = new Date().toISOString();
+                    const newArrival: Arrival = {
+                        ArrivalID: `arr-${currentUser.MemberID}-${matchDate}`,
+                        MatchDate: matchDate,
+                        Member: currentUser.MemberID,
+                        ArrivalTime: now,
+                        CheckInLatLong: { lat: latitude, lng: longitude },
+                    };
+                    setArrivals(prev => [...prev.filter(a => !(a.Member === currentUser.MemberID && a.MatchDate === matchDate)), newArrival]);
+                    alert(`Checked in successfully at ${new Date(now).toLocaleTimeString()}`);
+                } else {
+                    alert(`Check-in failed. You are ${Math.round(distance)} meters away from the ground. Please get closer.`);
                 }
-
-                setArrivals(prev => {
-                    const existingArrival = prev.find(a => a.MatchDate === matchDate && a.Member === currentUser.MemberID);
-                    if (existingArrival) {
-                        return prev.map(a => a.ArrivalID === existingArrival.ArrivalID ? {
-                            ...a,
-                            ArrivalTime: new Date().toISOString(),
-                            CheckInLatLong: { lat: latitude, lng: longitude },
-                        } : a);
-                    } else {
-                        // This case is unlikely if arrivals are pre-created, but good for robustness
-                        return [...prev, {
-                            ArrivalID: `arr-${Date.now()}`,
-                            MatchDate: matchDate,
-                            Member: currentUser.MemberID,
-                            ArrivalTime: new Date().toISOString(),
-                            CheckInLatLong: { lat: latitude, lng: longitude },
-                        }];
-                    }
-                });
-                alert("Checked in successfully!");
             },
             (error) => {
                 console.error("Geolocation error:", error);
-                alert("Could not get your location. Please enable location services and try again.");
+                alert("Could not get your location. Please ensure location services are enabled and permissions are granted.");
             }
         );
-    };
-
-    const handleConfirmKitDuty = (matchDate: string) => {
-         if (!currentUser) return;
-         setKitTracker(prev => prev.map(m => m.Date === matchDate ? { ...m, KitResponsible: currentUser.MemberID } : m));
-    };
-
-    const handleDeclineKitDuty = (matchDate: string) => {
-        if (!currentUser) return;
-        alert("You have declined kit duty. An admin will be notified to reassign it.");
-        // In a real app, this would trigger a notification. Here we just log it.
-        console.log(`User ${currentUser.Name} declined kit duty for ${matchDate}.`);
     };
 
     const handleNotifyNextPlayer = (matchDate: string) => {
         const match = kitTracker.find(k => k.Date === matchDate);
         if (!match) return;
+
         const assigneeId = match.KitResponsible || match.ProvisionalAssignee;
         const assignee = teamMembers.find(m => m.MemberID === assigneeId);
         if (!assignee) {
-            alert("Could not find the assigned player.");
+            alert('No player assigned for this match.');
             return;
         }
-        const message = `Hi ${assignee.Name}, this is a friendly reminder that you are on kit duty for the match on ${match.Date}. Please remember to bring it. Thanks!`;
-        const whatsappUrl = `https://wa.me/${assignee.PhoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
+
+        const today = new Date().toISOString().split('T')[0];
+        const isMatchDay = match.Date === today && match.Status === KitStatus.Upcoming;
+
+        let message = '';
+        if (match.Reason === AssignmentReason.Reassigned) {
+             const originalAssignee = teamMembers.find(m => m.MemberID === match.ProvisionalAssignee);
+             message = `Hi ${assignee.Name}, thanks for your understanding and picking the kit on behalf of ${originalAssignee?.Name || 'the scheduled player'}.`;
+        } else if (match.Reason === AssignmentReason.PenaltyLate) {
+            message = `Hi ${assignee.Name}, as per the late arrival rule, you have been assigned kit duty. Make sure to be on time next match! :) Thanks!`;
+        } else if (isMatchDay) {
+            message = `Hi ${assignee.Name}, this is a friendly reminder that you are on kit duty for today's match. Please remember to bring your car. Thanks!`;
+        } else {
+            message = `Hi ${assignee.Name}, this is a friendly reminder that you are on kit duty for the match on ${formatDate(match.Date)}.`;
+        }
+        
+        const whatsappUrl = `https://wa.me/${assignee.PhoneNumber.replace(/\+/g, '')}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
-
-
-    // --- Admin Actions ---
-    const handleAddTeamMember = (memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => {
+    
+    // ADMIN ACTIONS
+    const addTeamMember = (memberData: Omit<TeamMember, 'MemberID' | 'CompletedInRound'>) => {
         const newMember: TeamMember = {
             ...memberData,
-            MemberID: `user-${Date.now()}`,
+            MemberID: `user${Date.now()}`,
             CompletedInRound: false,
         };
-        setTeamMembers(prev => [...prev, newMember].sort((a,b) => a.Order - b.Order));
+        setTeamMembers(prev => [...prev, newMember]);
     };
-
-    const handleUpdateTeamMember = (updatedMember: TeamMember) => {
-        setTeamMembers(prev => prev.map(m => m.MemberID === updatedMember.MemberID ? updatedMember : m));
-    };
-
-    const handleDeleteTeamMember = (memberId: string) => {
-        setTeamMembers(prev => prev.filter(m => m.MemberID !== memberId));
-    };
-
+    const updateTeamMember = (member: TeamMember) => setTeamMembers(prev => prev.map(m => m.MemberID === member.MemberID ? member : m));
+    const deleteTeamMember = (memberId: string) => setTeamMembers(prev => prev.filter(m => m.MemberID !== memberId));
+    
     const handleAddMatch = (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn' | 'Reason' | 'DeferredMemberID'>) => {
         const newMatch: KitTrackerEntry = {
             ...matchData,
-            ProvisionalAssignee: '', // New matches are unassigned by default
-            KitResponsible: '',
-            TakenOnBehalfOf: '',
-            Status: KitStatus.Upcoming,
-            WeeksHeld: 0,
-            MatchOn: true,
+            ProvisionalAssignee: '', KitResponsible: '', TakenOnBehalfOf: '',
+            Status: KitStatus.Scheduled, // New matches start as Scheduled
+            WeeksHeld: 0, MatchOn: false,
             Reason: AssignmentReason.Rotation,
         };
         setKitTracker(prev => [...prev, newMatch]);
-        // Also add arrival stubs for active members
-        setArrivals(prev => {
-            const newArrivals = teamMembers
-                .filter(m => m.Status === MemberStatus.Active)
-                .map(m => ({
-                    ArrivalID: `arr-${m.MemberID}-${matchData.Date}`,
-                    MatchDate: matchData.Date,
-                    Member: m.MemberID,
-                    ArrivalTime: null,
-                    CheckInLatLong: null,
-                }));
-            return [...prev, ...newArrivals];
-        });
+        const newArrivalsForMatch = teamMembers
+            .filter(m => m.Status === MemberStatus.Active)
+            .map(m => ({
+                ArrivalID: `arr-${m.MemberID}-${newMatch.Date}`,
+                MatchDate: newMatch.Date, Member: m.MemberID, ArrivalTime: null, CheckInLatLong: null
+            }));
+        setArrivals(prev => [...prev, ...newArrivalsForMatch]);
     };
-
-    const handleUpdateMatch = (updatedMatch: KitTrackerEntry) => {
-        setKitTracker(prev => prev.map(m => m.Date === updatedMatch.Date ? updatedMatch : m));
-    };
-
-    const handleDeleteMatch = (date: string) => {
-        setKitTracker(prev => prev.filter(m => m.Date !== date));
+    const updateMatch = (match: KitTrackerEntry) => setKitTracker(prev => prev.map(k => k.Date === match.Date ? match : k));
+    const deleteMatch = (date: string) => {
+        setKitTracker(prev => prev.filter(k => k.Date !== date));
         setArrivals(prev => prev.filter(a => a.MatchDate !== date));
     };
-    
-    const assignPlayerToMatch = (memberId: string, newMatchDate: string) => {
-        setKitTracker(prev => {
-            return prev.map(match => {
-                let updatedMatch = { ...match };
 
-                // Un-assign this player from their old match, if any.
-                if (updatedMatch.ProvisionalAssignee === memberId) {
-                    updatedMatch.ProvisionalAssignee = '';
-                    updatedMatch.Reason = AssignmentReason.Rotation;
-                }
-
-                // Assign this player to the new match. This overwrites anyone else who was there.
-                if (updatedMatch.Date === newMatchDate) {
-                    updatedMatch.ProvisionalAssignee = memberId;
-                    updatedMatch.KitResponsible = ''; // Reset responsible when re-assigning
-                    updatedMatch.Reason = AssignmentReason.Rotation;
-                }
-                
-                return updatedMatch;
-            });
-        });
-    };
-
-    const handleApplyLatePenalty = (matchDate: string) => {
-        const match = kitTracker.find(k => k.Date === matchDate);
-        if (!match) return;
-
-        const lateArrivals = arrivals.filter(a => {
-            if (!a.ArrivalTime) return false;
-            return new Date(a.ArrivalTime).toTimeString().slice(0, 5) > match.CutoffTime;
-        }).sort((a, b) => new Date(b.ArrivalTime!).getTime() - new Date(a.ArrivalTime!).getTime());
-
-        const lastLatecomerId = lateArrivals[0]?.Member;
-        if (!lastLatecomerId) {
-            alert("No latecomers to penalize.");
-            return;
-        }
-
-        setKitTracker(prev => prev.map(m => {
-            if (m.Date === matchDate) {
-                return {
-                    ...m,
-                    KitResponsible: lastLatecomerId,
-                    Reason: AssignmentReason.PenaltyLate,
-                };
+    const addBulkTeamMembers = (data: any[]): { added: number, skipped: number } => {
+        let added = 0, skipped = 0;
+        const newMembers: TeamMember[] = [];
+        data.forEach(item => {
+            if (!item.username || teamMembers.some(m => m.username === item.username)) {
+                skipped++;
+                return;
             }
-            return m;
-        }));
-        alert(`Kit duty assigned to ${teamMembers.find(m => m.MemberID === lastLatecomerId)?.Name} as a penalty.`);
-    };
-
-    const handleReassignKit = (matchDate: string, memberId: string) => {
-        setKitTracker(prev => prev.map(m => m.Date === matchDate ? {...m, KitResponsible: memberId, Reason: AssignmentReason.Reassigned } : m));
-    };
-
-
-    const handleConfirmHandover = (matchDate: string) => {
-        setKitTracker(prev => prev.map(m => m.Date === matchDate ? {...m, Status: KitStatus.Completed } : m));
-    };
-
-    const handleBulkUpload = (data: any[], type: 'members' | 'matches'): { added: number, skipped: number } => {
-        let added = 0;
-        let skipped = 0;
-
-        if (type === 'members') {
-            const existingUsernames = new Set(teamMembers.map(m => m.username.toLowerCase()));
-            const newMembers: TeamMember[] = [];
-            data.forEach((row, index) => {
-                if (!row.username || existingUsernames.has(row.username.toLowerCase())) {
-                    skipped++;
-                    return;
-                }
-                newMembers.push({
-                    MemberID: `user-csv-${Date.now()}-${index}`,
-                    Name: row.Name,
-                    username: row.username,
-                    password: row.password,
-                    Role: row.Role || 'Player',
-                    IsAdmin: row.IsAdmin?.toLowerCase() === 'true',
-                    PhoneNumber: row.PhoneNumber,
-                    OwnsCar: row.OwnsCar?.toLowerCase() === 'true',
-                    Status: row.Status as MemberStatus || MemberStatus.Active,
-                    RotationEligible: row.RotationEligible as "Yes" | "No" || "Yes",
-                    PenaltyEligible: row.PenaltyEligible?.toLowerCase() !== 'false',
-                    Order: parseInt(row.Order, 10) || 999,
-                    CompletedInRound: false,
-                    Notes: row.Notes || '',
-                });
-                added++;
+            newMembers.push({
+                MemberID: `user-csv-${item.username}-${Date.now()}`,
+                Name: item.Name, username: item.username, password: item.password,
+                Role: item.Role || 'Player', IsAdmin: item.IsAdmin === 'TRUE',
+                PhoneNumber: item.PhoneNumber, OwnsCar: item.OwnsCar === 'TRUE',
+                Status: (Object.values(MemberStatus).includes(item.Status) ? item.Status : MemberStatus.Active) as MemberStatus,
+                RotationEligible: item.RotationEligible === 'No' ? 'No' : 'Yes',
+                PenaltyEligible: item.PenaltyEligible !== 'FALSE', Order: parseInt(item.Order, 10) || 100,
+                CompletedInRound: false, Notes: item.Notes,
             });
-            setTeamMembers(prev => [...prev, ...newMembers]);
-        } else { // matches
-            const existingDates = new Set(kitTracker.map(k => k.Date));
-             data.forEach(row => {
-                if (!row.Date || existingDates.has(row.Date)) {
-                    skipped++;
-                    return;
-                }
-                 handleAddMatch({
-                    Date: row.Date,
-                    DueDate: row.DueDate || row.Date,
-                    GroundLatLong: { lat: parseFloat(row.Lat), lng: parseFloat(row.Lng) },
-                    GeoRadiusMeters: parseInt(row.GeoRadiusMeters, 10),
-                    CutoffTime: row.CutoffTime,
-                    Notes: row.Notes || '',
-                });
-                added++;
-             });
-        }
-
+            added++;
+        });
+        setTeamMembers(prev => [...prev, ...newMembers]);
         return { added, skipped };
     };
 
-    // --- Render Logic ---
+    const addBulkMatches = (data: any[]): { added: number, skipped: number } => {
+         let added = 0, skipped = 0;
+         const newMatches: KitTrackerEntry[] = [];
+         const newArrivals: Arrival[] = [];
+         data.forEach(item => {
+            if (!item.Date || kitTracker.some(k => k.Date === item.Date)) {
+                skipped++;
+                return;
+            }
+            const newMatch: KitTrackerEntry = {
+                Date: item.Date, DueDate: item.DueDate,
+                GroundLatLong: { lat: parseFloat(item.Lat), lng: parseFloat(item.Lng) },
+                GeoRadiusMeters: parseInt(item.GeoRadiusMeters, 10),
+                CutoffTime: item.CutoffTime, Notes: item.Notes,
+                ProvisionalAssignee: '', KitResponsible: '', TakenOnBehalfOf: '',
+                Status: KitStatus.Scheduled, WeeksHeld: 0, MatchOn: false,
+                Reason: AssignmentReason.Rotation,
+            };
+            newMatches.push(newMatch);
+            teamMembers.forEach(m => newArrivals.push({
+                ArrivalID: `arr-${m.MemberID}-${newMatch.Date}`,
+                MatchDate: newMatch.Date, Member: m.MemberID, ArrivalTime: null, CheckInLatLong: null
+            }));
+            added++;
+         });
+         setKitTracker(prev => [...prev, ...newMatches]);
+         setArrivals(prev => [...prev, ...newArrivals]);
+         return { added, skipped };
+    };
+
+    const handleAssignPlayerToMatch = (memberId: string, matchDate: string) => {
+        setKitTracker(prev => {
+            const newState = prev.map(match => {
+                // If this is the match we are assigning to, set the new assignee
+                if (match.Date === matchDate) {
+                    return { ...match, ProvisionalAssignee: memberId, Reason: AssignmentReason.Rotation };
+                }
+                // If another match was previously assigned to this player, unassign it
+                if (match.ProvisionalAssignee === memberId) {
+                    return { ...match, ProvisionalAssignee: '', Reason: AssignmentReason.Rotation };
+                }
+                return match;
+            });
+            return newState;
+        });
+    };
+
+    const handleConfirmMatchStatus = (matchDate: string, newStatus: KitStatus.Upcoming | KitStatus.NoPlay) => {
+        setKitTracker(prev => prev.map(k => k.Date === matchDate ? { ...k, Status: newStatus, MatchOn: newStatus === KitStatus.Upcoming } : k));
+    };
+    
+    const handleReassignKit = (matchDate: string, newMemberId: string) => {
+        setKitTracker(prev => prev.map(k => k.Date === matchDate ? { ...k, KitResponsible: newMemberId, Reason: AssignmentReason.Reassigned } : k));
+    };
+
+    const handleApplyLatePenalty = (matchDate: string, penalizedMemberId: string) => {
+        const match = kitTracker.find(k => k.Date === matchDate);
+        if (!match) return;
+
+        const originalAssigneeId = match.ProvisionalAssignee;
+
+        setKitTracker(prev => {
+            const nextWeek = new Date(match.Date);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+            let nextWeekMatchExists = prev.some(k => k.Date === nextWeekStr);
+
+            const updatedTracker = prev.map(k => {
+                // Apply penalty to current match
+                if (k.Date === matchDate) {
+                    return {
+                        ...k,
+                        KitResponsible: penalizedMemberId,
+                        Reason: AssignmentReason.PenaltyLate,
+                        DeferredMemberID: originalAssigneeId
+                    };
+                }
+                // Defer original assignee to next week's match
+                if (k.Date === nextWeekStr) {
+                    return {
+                        ...k,
+                        ProvisionalAssignee: originalAssigneeId,
+                        Reason: AssignmentReason.Deferred
+                    };
+                }
+                return k;
+            });
+            
+            // If next week's match doesn't exist, create it for the deferred player
+            if (!nextWeekMatchExists && originalAssigneeId) {
+                const newMatch: KitTrackerEntry = {
+                    ...match,
+                    Date: nextWeekStr,
+                    DueDate: nextWeekStr,
+                    Status: KitStatus.Scheduled,
+                    ProvisionalAssignee: originalAssigneeId,
+                    KitResponsible: '',
+                    TakenOnBehalfOf: '',
+                    WeeksHeld: 0,
+                    Reason: AssignmentReason.Deferred,
+                    DeferredMemberID: undefined,
+                    Notes: `Deferred from ${match.Date}`,
+                };
+                updatedTracker.push(newMatch);
+                 // Also add arrivals for this new match
+                const newArrivalsForMatch = teamMembers
+                    .filter(m => m.Status === MemberStatus.Active)
+                    .map(m => ({
+                        ArrivalID: `arr-${m.MemberID}-${newMatch.Date}`,
+                        MatchDate: newMatch.Date, Member: m.MemberID, ArrivalTime: null, CheckInLatLong: null
+                    }));
+                setArrivals(currentArrivals => [...currentArrivals, ...newArrivalsForMatch]);
+            }
+            
+            return updatedTracker;
+        });
+    };
+    
+    const handleConfirmHandover = (matchDate: string) => {
+        const match = kitTracker.find(k => k.Date === matchDate);
+        if (!match) return;
+        const carrierId = match.KitResponsible || match.ProvisionalAssignee;
+        if (!carrierId) {
+            alert("Cannot confirm handover. No kit carrier is assigned.");
+            return;
+        }
+
+        // Update Kit Tracker: set status to Completed and calculate WeeksHeld
+        setKitTracker(prev => {
+            const previousMatches = prev
+                .filter(k => new Date(k.Date) < new Date(matchDate) && k.Status === KitStatus.Completed)
+                .sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
+            
+            const lastMatch = previousMatches[0];
+            let weeksHeld = 1;
+            if (lastMatch && lastMatch.KitResponsible === carrierId) {
+                weeksHeld = (lastMatch.WeeksHeld || 0) + 1;
+            }
+
+            return prev.map(k => k.Date === matchDate ? { ...k, Status: KitStatus.Completed, KitResponsible: carrierId, WeeksHeld: weeksHeld } : k);
+        });
+
+        // Update Team Member: set CompletedInRound to true
+        setTeamMembers(prev => {
+            const updatedMembers = prev.map(m => m.MemberID === carrierId ? { ...m, CompletedInRound: true } : m);
+
+            // Check if round is complete
+            const activeRotationMembers = updatedMembers.filter(m => m.Status === MemberStatus.Active && m.RotationEligible === 'Yes');
+            const allCompleted = activeRotationMembers.every(m => m.CompletedInRound);
+
+            if (allCompleted && activeRotationMembers.length > 0) {
+                alert("This completes the rotation round! Resetting for the next round.");
+                return updatedMembers.map(m => ({...m, CompletedInRound: false }));
+            }
+            return updatedMembers;
+        });
+    };
+
+    const adminActions = {
+        addTeamMember, updateTeamMember, deleteTeamMember,
+        addMatch: handleAddMatch, updateMatch, deleteMatch,
+        addBulkTeamMembers, addBulkMatches,
+        assignPlayerToMatch: handleAssignPlayerToMatch,
+        confirmMatchStatus: handleConfirmMatchStatus,
+        applyLatePenalty: handleApplyLatePenalty,
+        reassignKit: handleReassignKit,
+        confirmHandover: handleConfirmHandover,
+        // FIX: Add missing 'notifyNextPlayer' to adminActions to resolve type error.
+        notifyNextPlayer: handleNotifyNextPlayer,
+    };
+    
+    // FIX: Add missing 'confirmKitDuty' and 'declineKitDuty' to userActions to resolve type error.
+    const userActions = {
+        confirmKitDuty: handleConfirmKitDuty,
+        declineKitDuty: handleDeclineKitDuty,
+        checkIn: handleCheckIn,
+        notifyNextPlayer: handleNotifyNextPlayer,
+    };
+    
+    if (!isDataLoaded) return <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900"><p className="text-white">Loading application...</p></div>;
+
     if (!currentUser) {
         return (
             <>
-                <LoginPage 
-                    onLogin={handleLogin}
-                    onShowSignUp={() => setShowSignUp(true)}
-                    onShowForgotPassword={() => setShowForgotPassword(true)}
-                    onResetData={handleResetData}
-                />
+                <LoginPage onLogin={handleLogin} onResetData={handleResetData} onShowSignUp={() => setShowSignUp(true)} onShowForgotPassword={() => setShowForgotPassword(true)} />
                 {showSignUp && <SignUpModal onSignUp={handleSignUp} onClose={() => setShowSignUp(false)} />}
                 {showForgotPassword && <ForgotPasswordModal teamMembers={teamMembers} onClose={() => setShowForgotPassword(false)} />}
             </>
         );
     }
     
-    // Actions object to pass down
-    const allActions = {
-        // UserPanel
-        confirmKitDuty: handleConfirmKitDuty,
-        declineKitDuty: handleDeclineKitDuty,
-        checkIn: handleCheckIn,
-        notifyNextPlayer: handleNotifyNextPlayer,
-        // DataManagementPanel & Schedule Panel
-        addTeamMember: handleAddTeamMember,
-        updateTeamMember: handleUpdateTeamMember,
-        deleteTeamMember: handleDeleteTeamMember,
-        addMatch: handleAddMatch,
-        updateMatch: handleUpdateMatch,
-        deleteMatch: handleDeleteMatch,
-        addBulkTeamMembers: (data: any) => handleBulkUpload(data, 'members'),
-        addBulkMatches: (data: any) => handleBulkUpload(data, 'matches'),
-        assignPlayerToMatch: assignPlayerToMatch,
-        // MatchDayControlPanel
-        applyLatePenalty: handleApplyLatePenalty,
-        reassignKit: handleReassignKit,
-        confirmHandover: handleConfirmHandover,
-        notifyPlayer: handleNotifyNextPlayer,
+    const pageContent = () => {
+        if (currentPage === 'profile') {
+            return <UserProfile currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onBack={() => setCurrentPage('dashboard')} />;
+        }
+        if (currentPage === 'dashboard') {
+            return currentUser.IsAdmin
+                ? <AdminPanel teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={{...adminActions, notifyNextPlayer: handleNotifyNextPlayer}} />
+                : <UserPanel currentUser={currentUser} teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={userActions} />;
+        }
+        return null;
     };
 
-
     return (
-        <DashboardShell 
-            currentUser={currentUser} 
-            onLogout={handleLogout} 
-            onNavigateToProfile={() => setCurrentView('profile')}
-        >
-            {currentView === 'profile' ? (
-                <UserProfile 
-                    currentUser={currentUser} 
-                    onUpdateProfile={handleUpdateProfile} 
-                    onBack={() => setCurrentView('dashboard')}
-                />
-            ) : currentUser.IsAdmin ? (
-                <AdminPanel 
-                    currentUser={currentUser}
-                    teamMembers={teamMembers}
-                    kitTracker={kitTracker}
-                    arrivals={arrivals}
-                    actions={allActions}
-                />
-            ) : (
-                <UserPanel
-                    currentUser={currentUser}
-                    teamMembers={teamMembers}
-                    kitTracker={kitTracker}
-                    arrivals={arrivals}
-                    actions={allActions}
-                />
-            )}
+        <DashboardShell currentUser={currentUser} onLogout={handleLogout} onNavigateToProfile={() => setCurrentPage('profile')}>
+            {pageContent()}
         </DashboardShell>
     );
-}
+};
 
 export default App;
