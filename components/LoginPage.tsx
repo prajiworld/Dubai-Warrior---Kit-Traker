@@ -5,9 +5,10 @@ interface LoginPageProps {
     onLogin: (username: string, password: string) => boolean;
     onShowSignUp: () => void;
     onShowForgotPassword: () => void;
+    onResetData: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForgotPassword }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForgotPassword, onResetData }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -101,6 +102,19 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
                         Sign up
                     </a>
                 </p>
+
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                        Having trouble?{' '}
+                        <button
+                            type="button"
+                            onClick={onResetData}
+                            className="font-medium text-red-500 hover:text-red-700 focus:outline-none"
+                        >
+                            Reset Application Data
+                        </button>
+                    </p>
+                </div>
             </div>
         </div>
     );

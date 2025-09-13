@@ -11,32 +11,39 @@ interface SignUpModalProps {
 }
 
 const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
-    const [name, setName] = useState('');
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState('');
+    const [formData, setFormData] = useState({
+        name: '',
+        username: '',
+        password: '',
+        confirmPassword: '',
+        phoneNumber: '',
+    });
     const [error, setError] = useState<string | null>(null);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
-        if (password !== confirmPassword) {
+        if (formData.password !== formData.confirmPassword) {
             setError("Passwords do not match.");
             return;
         }
         
-        if (password.length < 6) {
+        if (formData.password.length < 6) {
             setError("Password must be at least 6 characters long.");
             return;
         }
 
         const success = onSignUp({
-            Name: name,
-            username: username.trim(),
-            password,
-            PhoneNumber: phoneNumber,
+            Name: formData.name,
+            username: formData.username.trim(),
+            password: formData.password,
+            PhoneNumber: formData.phoneNumber,
         });
 
         if (!success) {
@@ -76,23 +83,23 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label htmlFor="name-signup" className={labelClasses}>Full Name</label>
-                        <input id="name-signup" name="name" className={inputClasses} type="text" placeholder="e.g. Ben Kenobi" value={name} onChange={e => setName(e.target.value)} required />
+                        <input id="name-signup" name="name" className={inputClasses} type="text" placeholder="e.g. Ben Kenobi" value={formData.name} onChange={handleChange} required />
                     </div>
                      <div>
                         <label htmlFor="username-signup" className={labelClasses}>Username</label>
-                        <input id="username-signup" name="username" className={inputClasses} type="text" placeholder="e.g. ben" value={username} onChange={e => setUsername(e.target.value)} required />
+                        <input id="username-signup" name="username" className={inputClasses} type="text" placeholder="e.g. ben" value={formData.username} onChange={handleChange} required />
                     </div>
                      <div>
                         <label htmlFor="password-signup" className={labelClasses}>Password</label>
-                        <input id="password-signup" name="password" className={inputClasses} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+                        <input id="password-signup" name="password" className={inputClasses} type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />
                     </div>
                     <div>
                         <label htmlFor="confirm-password-signup" className={labelClasses}>Confirm Password</label>
-                        <input id="confirm-password-signup" name="confirmPassword" className={inputClasses} type="password" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+                        <input id="confirm-password-signup" name="confirmPassword" className={inputClasses} type="password" placeholder="••••••••" value={formData.confirmPassword} onChange={handleChange} required />
                     </div>
                     <div>
                         <label htmlFor="phone-signup" className={labelClasses}>Phone Number</label>
-                        <input id="phone-signup" name="phoneNumber" className={inputClasses} type="tel" placeholder="+971501234567" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} required />
+                        <input id="phone-signup" name="phoneNumber" className={inputClasses} type="tel" placeholder="+971501234567" value={formData.phoneNumber} onChange={handleChange} required />
                     </div>
                     
                     {error && <p className="text-sm text-red-500 text-center font-medium">{error}</p>}

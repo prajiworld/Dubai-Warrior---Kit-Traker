@@ -80,6 +80,16 @@ const App: React.FC = () => {
         setView('dashboard');
     };
     
+    const handleResetData = useCallback(() => {
+        if (window.confirm("Are you sure you want to reset all application data? This will restore the initial team members and matches and cannot be undone.")) {
+            localStorage.removeItem('MyMember');
+            localStorage.removeItem('teamMembers');
+            localStorage.removeItem('kitTracker');
+            localStorage.removeItem('arrivals');
+            window.location.reload();
+        }
+    }, []);
+    
     // --- USER REGISTRATION ACTION ---
     const handleUserRegistration = useCallback((newUserData: NewUserData): boolean => {
         if (teamMembers.some(m => m.username.toLowerCase() === newUserData.username.toLowerCase())) {
@@ -395,7 +405,7 @@ const App: React.FC = () => {
     if (!currentUser) {
         return (
             <>
-                <LoginPage onLogin={handleLogin} onShowSignUp={() => setModal('signup')} onShowForgotPassword={() => setModal('forgotPassword')} />
+                <LoginPage onLogin={handleLogin} onShowSignUp={() => setModal('signup')} onShowForgotPassword={() => setModal('forgotPassword')} onResetData={handleResetData} />
                 {modal === 'signup' && <SignUpModal onClose={() => setModal(null)} onSignUp={handleUserRegistration} />}
                 {modal === 'forgotPassword' && <ForgotPasswordModal onClose={() => setModal(null)} teamMembers={teamMembers} />}
             </>
