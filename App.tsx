@@ -9,6 +9,7 @@ import AdminPanel from './components/AdminPanel';
 import UserProfile from './components/UserProfile';
 import SignUpModal, { type NewUserData } from './components/SignUpModal';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
+import NotificationModal from './components/NotificationModal';
 import { getDistanceInMeters, formatDate } from './utils/helpers';
 
 const App: React.FC = () => {
@@ -20,6 +21,7 @@ const App: React.FC = () => {
     const [showSignUp, setShowSignUp] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const [notificationInfo, setNotificationInfo] = useState<{ assignee: TeamMember; match: KitTrackerEntry; groupMessage: string; directMessage: string; } | null>(null);
 
     const loadData = useCallback(() => {
         try {
@@ -177,20 +179,39 @@ const App: React.FC = () => {
         const today = new Date().toISOString().split('T')[0];
         const isMatchDay = match.Date === today && match.Status === KitStatus.Upcoming;
 
-        let message = '';
+        let directMessage = '';
+        let groupMessage = '';
+
         if (match.Reason === AssignmentReason.Reassigned) {
              const originalAssignee = teamMembers.find(m => m.MemberID === match.ProvisionalAssignee);
-             message = `Hi ${assignee.Name}, thanks for your understanding and picking the kit on behalf of ${originalAssignee?.Name || 'the scheduled player'}.`;
+             const originalAssigneeName = originalAssignee?.Name || 'the scheduled player';
+             directMessage = `Hi ${assignee.Name}, thanks for your understanding and picking the kit on behalf of ${originalAssigneeName}.`;
+             groupMessage = `Kit Duty Update: ${assignee.Name} will be taking the kit for the match on ${formatDate(match.Date)} on behalf of ${originalAssigneeName}.`;
         } else if (match.Reason === AssignmentReason.PenaltyLate) {
-            message = `Hi ${assignee.Name}, as per the late arrival rule, you have been assigned kit duty. Make sure to be on time next match! :) Thanks!`;
+            directMessage = `Hi ${assignee.Name}, as per the late arrival rule, you have been assigned kit duty for the match on ${formatDate(match.Date)}. Make sure to be on time next match! :) Thanks!`;
+            groupMessage = `Penalty Assignment: ${assignee.Name} has been assigned kit duty for the match on ${formatDate(match.Date)} due to late arrival.`;
         } else if (isMatchDay) {
-            message = `Hi ${assignee.Name}, this is a friendly reminder that you are on kit duty for today's match. Please remember to bring your car. Thanks!`;
+            directMessage = `Hi ${assignee.Name}, this is a friendly reminder that you are on kit duty for today's match. Please remember to bring your car. Thanks!`;
+            groupMessage = `Reminder: ${assignee.Name} is on kit duty for today's match.`;
         } else {
-            message = `Hi ${assignee.Name}, this is a friendly reminder that you are on kit duty for the match on ${formatDate(match.Date)}.`;
+            directMessage = `Hi ${assignee.Name}, this is a friendly reminder that you are on kit duty for the match on ${formatDate(match.Date)}.`;
+            groupMessage = `Reminder: ${assignee.Name} is on kit duty for the upcoming match on ${formatDate(match.Date)}.`;
         }
         
-        const whatsappUrl = `https://wa.me/${assignee.PhoneNumber.replace(/\+/g, '')}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(groupMessage).then(() => {
+                setNotificationInfo({ assignee, match, groupMessage, directMessage });
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+                alert(`Could not copy group message, but the direct message will still open.`);
+                const whatsappUrl = `https://wa.me/${assignee.PhoneNumber.replace(/\+/g, '')}?text=${encodeURIComponent(directMessage)}`;
+                window.open(whatsappUrl, '_blank');
+            });
+        } else {
+            alert(`A direct message to ${assignee.Name} will now open. (Clipboard not supported for group message).`);
+            const whatsappUrl = `https://wa.me/${assignee.PhoneNumber.replace(/\+/g, '')}?text=${encodeURIComponent(directMessage)}`;
+            window.open(whatsappUrl, '_blank');
+        }
     };
     
     // ADMIN ACTIONS
@@ -462,9 +483,19 @@ const App: React.FC = () => {
     };
 
     return (
-        <DashboardShell currentUser={currentUser} onLogout={handleLogout} onNavigateToProfile={() => setCurrentPage('profile')}>
-            {pageContent()}
-        </DashboardShell>
+        <>
+            <DashboardShell currentUser={currentUser} onLogout={handleLogout} onNavigateToProfile={() => setCurrentPage('profile')}>
+                {pageContent()}
+            </DashboardShell>
+            {notificationInfo && (
+                <NotificationModal
+                    assignee={notificationInfo.assignee}
+                    directMessage={notificationInfo.directMessage}
+                    groupMessage={notificationInfo.groupMessage}
+                    onClose={() => setNotificationInfo(null)}
+                />
+            )}
+        </>
     );
 };
 
