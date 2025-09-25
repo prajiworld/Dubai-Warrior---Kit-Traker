@@ -244,11 +244,7 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
                 <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold">Team Members</h3><button onClick={() => setEditingMember(EMPTY_MEMBER)} className={`${buttonClass} bg-brand-primary hover:bg-brand-secondary`}>Add New Member</button></div>
                 <div className="overflow-x-auto"><table className="w-full text-left text-sm">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th className="px-4 py-2">Order</th><th className="px-4 py-2">Name</th><th className="px-4 py-2">Username</th><th className="px-4 py-2">Role</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-center">Actions</th></tr></thead>
-                    <tbody>{teamMembers.sort((a,b) => {
-                        if (a.CompletedInRound && !b.CompletedInRound) return -1;
-                        if (!a.CompletedInRound && b.CompletedInRound) return 1;
-                        return a.Order - b.Order;
-                    }).map(m => (<tr key={m.MemberID} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tbody>{teamMembers.sort((a,b) => a.Order - b.Order).map(m => (<tr key={m.MemberID} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-2 font-mono">{m.Order}</td><td className="px-4 py-2 font-medium">{m.Name}</td><td className="px-4 py-2">{m.username}</td><td className="px-4 py-2">{m.Role}</td><td className="px-4 py-2">{m.Status}</td>
                         <td className="px-4 py-2 text-center flex items-center justify-center space-x-2"><button onClick={() => setEditingMember(m)} className="text-blue-600 hover:text-blue-800 p-1" aria-label={`Edit ${m.Name}`}><PencilIcon /></button><button onClick={() => window.confirm(`Are you sure you want to delete ${m.Name}?`) && actions.deleteTeamMember(m.MemberID)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${m.Name}`}><TrashIcon /></button></td></tr>))}</tbody>
                 </table></div>
@@ -259,7 +255,7 @@ const DataManagementPanel: React.FC<DataManagementPanelProps> = ({ teamMembers, 
                 <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold">Match Schedules</h3><button onClick={() => setEditingMatch(EMPTY_MATCH)} className={`${buttonClass} bg-brand-primary hover:bg-brand-secondary`}>Add New Match</button></div>
                 <div className="overflow-x-auto"><table className="w-full text-left text-sm">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th className="px-4 py-2">Date</th><th className="px-4 py-2">Cutoff</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-center">Actions</th></tr></thead>
-                    <tbody>{kitTracker.sort((a,b) => new Date(a.Date).getTime() - new Date(b.Date).getTime()).map(k => {
+                    <tbody>{kitTracker.sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime()).map(k => {
                         
                         let displayStatus: KitStatus | 'Match Day' = k.Status;
                         if (k.Status === KitStatus.Upcoming && k.Date === today) {
