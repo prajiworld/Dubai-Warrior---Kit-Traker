@@ -6,7 +6,8 @@ import { XCircleIcon } from './Icons';
 export type NewUserData = Pick<TeamMember, 'Name' | 'username' | 'password' | 'PhoneNumber'>;
 
 interface SignUpModalProps {
-  onSignUp: (userData: NewUserData) => boolean; // Returns true on success, false on failure (e.g., username exists)
+  // FIX: Updated to return a Promise to support async sign-up validation.
+  onSignUp: (userData: NewUserData) => Promise<boolean>; // Returns true on success, false on failure (e.g., username exists)
   onClose: () => void;
 }
 
@@ -25,7 +26,8 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // FIX: Made the function async to await the promise from onSignUp.
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
@@ -39,7 +41,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
             return;
         }
 
-        const success = onSignUp({
+        const success = await onSignUp({
             Name: formData.name,
             username: formData.username.trim(),
             password: formData.password,

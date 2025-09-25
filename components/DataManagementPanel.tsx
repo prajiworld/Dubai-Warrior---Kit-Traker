@@ -119,7 +119,8 @@ const CsvUploadSection: React.FC<{
     title: string;
     templateContent: string;
     templateFileName: string;
-    onUpload: (data: any[]) => { added: number, skipped: number };
+    // FIX: Updated to return a Promise to handle async upload.
+    onUpload: (data: any[]) => Promise<{ added: number, skipped: number }>;
 }> = ({ title, templateContent, templateFileName, onUpload }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,7 +133,8 @@ const CsvUploadSection: React.FC<{
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        // FIX: Made the onload handler async to await the onUpload call.
+        reader.onload = async (e) => {
             const text = e.target?.result;
             if (typeof text !== 'string') return;
             
@@ -150,8 +152,8 @@ const CsvUploadSection: React.FC<{
                 }, {} as any);
             });
 
-            const result = onUpload(data);
-            alert(`Upload complete!\n\n${result.added} records added.\n${result.skipped} records skipped (duplicates or errors).`);
+            // FIX: Awaited onUpload and removed the redundant alert. The parent component handles notifications.
+            await onUpload(data);
             if (fileInputRef.current) {
                 fileInputRef.current.value = ""; // Reset file input
             }
@@ -184,8 +186,10 @@ interface DataManagementPanelProps {
         addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn' | 'Reason' | 'DeferredMemberID'>) => void;
         updateMatch: (match: KitTrackerEntry) => void;
         deleteMatch: (date: string) => void;
-        addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
-        addBulkMatches: (data: any[]) => { added: number, skipped: number };
+        // FIX: Updated return type to Promise to match the prop from AdminPanel.
+        addBulkTeamMembers: (data: any[]) => Promise<{ added: number, skipped: number }>;
+        // FIX: Updated return type to Promise to match the prop from AdminPanel.
+        addBulkMatches: (data: any[]) => Promise<{ added: number, skipped: number }>;
     };
 }
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import DubaiWarriorLogo from './Logo';
 
 interface LoginPageProps {
-    onLogin: (username: string, password: string) => boolean;
+    onLogin: (username: string, password: string) => Promise<boolean>;
     onShowSignUp: () => void;
     onShowForgotPassword: () => void;
     onShowPublicView: () => void;
@@ -12,11 +12,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [isSettingUp, setIsSettingUp] = useState(false);
+    const [setupMessage, setSetupMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        const success = onLogin(username, password);
+        const success = await onLogin(username, password);
         if (!success) {
             setError('Invalid username or password. Please try again.');
         }
@@ -35,6 +37,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
         e.preventDefault();
         onShowPublicView();
     }
+
+    const handleSetupDatabase = async () => {
+        setIsSettingUp(true);
+        setSetupMessage(null);
+        try {
+            const response = await fetch('/api/setup');
+            const data = await response.json();
+            if (response.ok) {
+                setSetupMessage({ type: 'success', text: `Database setup successful: ${data.message}. Please refresh and log in.` });
+            } else {
+                throw new Error(data.message || 'Setup failed. The database might already be initialized.');
+            }
+        } catch (error) {
+            setSetupMessage({ type: 'error', text: `Database setup failed: ${error.message}` });
+        } finally {
+            setIsSettingUp(false);
+        }
+    };
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
@@ -117,10 +137,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
                         </a>
                     </p>
                 </div>
+                
+                {/* First Time Setup Section */}
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-center text-sm font-semibold text-gray-700 dark:text-gray-300">First-Time Setup</h3>
+                    <p className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">If this is the first deployment, click here to initialize the database tables and data.</p>
+                    <button
+                        onClick={handleSetupDatabase}
+                        disabled={isSettingUp}
+                        className="mt-3 w-full group relative flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50"
+                    >
+                        {isSettingUp ? 'Initializing...' : 'Initialize Database'}
+                    </button>
+                    {setupMessage && <p className={`mt-2 text-center text-xs font-medium ${setupMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{setupMessage.text}</p>}
+                </div>
             </div>
         </div>
     );
 };
 
-// FIX: Add default export
 export default LoginPage;

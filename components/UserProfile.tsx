@@ -5,7 +5,8 @@ import { UserCircleIcon } from './Icons';
 interface UserProfileProps {
   currentUser: TeamMember;
   onUpdateProfile: (updatedData: Pick<TeamMember, 'PhoneNumber' | 'OwnsCar'>) => void;
-  onChangePassword: (passwords: { current: string; new: string }) => { success: boolean; message: string };
+  // FIX: Updated to return a Promise to support async password change validation.
+  onChangePassword: (passwords: { current: string; new: string }) => Promise<{ success: boolean; message: string }>;
   onBack: () => void;
 }
 
@@ -36,7 +37,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ currentUser, onUpdateProfile,
     setHasChanges(false);
   };
 
-  const handlePasswordSave = (e: React.FormEvent) => {
+  // FIX: Made the function async to await the promise from onChangePassword.
+  const handlePasswordSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordMessage(null);
 
@@ -49,7 +51,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ currentUser, onUpdateProfile,
         return;
     }
 
-    const result = onChangePassword({ current: passwordData.current, new: passwordData.new });
+    const result = await onChangePassword({ current: passwordData.current, new: passwordData.new });
 
     if (result.success) {
         setPasswordMessage({ type: 'success', text: result.message });
