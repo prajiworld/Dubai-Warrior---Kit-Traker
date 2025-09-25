@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
-import { KitStatus, MemberStatus } from '../types';
+import { KitStatus } from '../types';
 import { formatDate, formatTime } from '../utils/helpers';
 import StatusBadge from './StatusBadge';
-import PlayerSelectionModal from './PlayerSelectionModal';
 
+// FIX: Removed unused 'takeOnBehalf' from KitSchedulePanelProps['actions'] to resolve a type error.
+// The prop was required but not provided by the parent UserPanel component because the associated feature was removed.
 interface KitSchedulePanelProps {
     currentUser: TeamMember;
     teamMembers: TeamMember[];
@@ -12,14 +13,12 @@ interface KitSchedulePanelProps {
     arrivals: Arrival[];
     actions: {
         confirmKitDuty: (matchDate: string) => void;
-        declineKitDuty: (matchDate: string, newAssigneeId: string) => void;
+        declineKitDuty: (matchDate: string) => void;
         checkIn: (matchDate: string) => void;
     };
 }
 
 const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMembers, kitTracker, arrivals, actions }) => {
-    const [showReassignModal, setShowReassignModal] = useState(false);
-
     const upcomingMatch = kitTracker
         .filter(k => [KitStatus.Upcoming, KitStatus.Scheduled].includes(k.Status))
         .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())[0];
@@ -32,41 +31,17 @@ const KitSchedulePanel: React.FC<KitSchedulePanelProps> = ({ currentUser, teamMe
         const isCurrentUserProvisional = match.ProvisionalAssignee === currentUser.MemberID;
         const isKitResponsibleSet = !!match.KitResponsible;
 
-        const eligibleForReassignment = teamMembers.filter(m =>
-            m.MemberID !== currentUser.MemberID &&
-            m.Status === MemberStatus.Active &&
-            m.OwnsCar === true
-        );
-    
-        const handleDeclineClick = () => {
-            if (eligibleForReassignment.length === 0) {
-                alert("There are no other eligible players to reassign kit duty to. Please contact an admin to arrange a swap.");
-                return;
-            }
-            setShowReassignModal(true);
-        };
-
         if (isCurrentUserProvisional && !isKitResponsibleSet) {
             return (
-                 <>
-                    <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                        <button onClick={() => actions.confirmKitDuty(match.Date)} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700">Confirm Kit Duty</button>
-                        <button onClick={handleDeclineClick} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">Decline Kit Duty</button>
-                    </div>
-                     {showReassignModal && (
-                        <PlayerSelectionModal
-                            title="Reassign Duty To"
-                            teamMembers={eligibleForReassignment}
-                            onClose={() => setShowReassignModal(false)}
-                            onSelect={(newAssigneeId) => {
-                                actions.declineKitDuty(match.Date, newAssigneeId);
-                                setShowReassignModal(false);
-                            }}
-                        />
-                    )}
-                </>
+                <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                    <button onClick={() => actions.confirmKitDuty(match.Date)} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700">Confirm Kit Duty</button>
+                    <button onClick={() => actions.declineKitDuty(match.Date)} className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700">Decline Kit Duty</button>
+                </div>
             );
         }
+
+        // Removed the "I'll Take The Kit" button as per user request.
+        // The space is left intentionally blank to direct users to the new schedule system.
 
         return null;
     };

@@ -37,7 +37,7 @@ const DashboardShell: React.FC<DashboardShellProps> = ({ currentUser, onLogout, 
                             onClick={onLogout}
                             className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary hover:bg-brand-primary rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent"
                         >
-                            Logout
+                            Switch User
                         </button>
                     </div>
                 </div>
