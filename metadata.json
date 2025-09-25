@@ -1,5 +1,5 @@
 {
-  "name": "Team Kit & Arrival Tracker",
+  "name": "Dubai Warriors Team Kit & Arrival Tracker",
   "description": "An application for sports teams to manage kit rotation and track player arrivals for matches, based on a detailed checklist. It includes user and admin panels with features like geo-fenced check-ins, penalty assignments for late arrivals, and roster management.",
   "requestFramePermissions": []
 }

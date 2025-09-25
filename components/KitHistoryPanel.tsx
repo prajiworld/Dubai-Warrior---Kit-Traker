@@ -56,7 +56,7 @@ const KitHistoryPanel: React.FC<KitHistoryPanelProps> = ({ teamMembers, kitTrack
           </thead>
           <tbody>
             {kitTracker
-              .sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime())
+              .sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())
               .map(entry => {
                 const provisionalName = getMemberName(entry.ProvisionalAssignee);
                 const responsibleName = getMemberName(entry.KitResponsible);

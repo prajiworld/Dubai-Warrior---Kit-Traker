@@ -10,6 +10,7 @@ import UserProfile from './components/UserProfile';
 import SignUpModal, { type NewUserData } from './components/SignUpModal';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
 import NotificationModal from './components/NotificationModal';
+import PublicDashboard from './components/PublicDashboard'; // Import the new component
 import { getDistanceInMeters, formatDate } from './utils/helpers';
 
 const App: React.FC = () => {
@@ -17,7 +18,7 @@ const App: React.FC = () => {
     const [kitTracker, setKitTracker] = useState<KitTrackerEntry[]>([]);
     const [arrivals, setArrivals] = useState<Arrival[]>([]);
     const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
-    const [currentPage, setCurrentPage] = useState('dashboard');
+    const [currentPage, setCurrentPage] = useState('login'); // Can be 'login', 'dashboard', 'profile', 'public'
     const [showSignUp, setShowSignUp] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -42,6 +43,9 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (window.location.pathname === '/public') {
+            setCurrentPage('public');
+        }
         loadData();
     }, [loadData]);
 
@@ -67,14 +71,10 @@ const App: React.FC = () => {
         }
         return false;
     };
-    const handleLogout = () => setCurrentUser(null);
-    const handleResetData = () => {
-        if (window.confirm("Are you sure you want to reset all application data to its initial state? This cannot be undone.")) {
-            localStorage.clear();
-            loadData();
-            setCurrentUser(null);
-            alert("Application data has been reset.");
-        }
+    const handleLogout = () => {
+        setCurrentUser(null);
+        setCurrentPage('login');
+        window.history.pushState({}, '', '/');
     };
 
     const handleSignUp = (userData: NewUserData): boolean => {
@@ -112,7 +112,21 @@ const App: React.FC = () => {
         setCurrentPage('dashboard');
     };
     
-    // FIX: Implement confirmKitDuty to resolve type error.
+    const handleChangePassword = (passwords: { current: string; new: string }): { success: boolean; message: string } => {
+        if (!currentUser) {
+            return { success: false, message: 'No user is logged in.' };
+        }
+        if (currentUser.password !== passwords.current) {
+            return { success: false, message: 'Incorrect current password.' };
+        }
+
+        const updatedUser = { ...currentUser, password: passwords.new };
+        setCurrentUser(updatedUser);
+        setTeamMembers(prev => prev.map(m => m.MemberID === currentUser.MemberID ? updatedUser : m));
+        
+        return { success: true, message: 'Password updated successfully!' };
+    };
+
     const handleConfirmKitDuty = (matchDate: string) => {
         if (!currentUser) return;
         setKitTracker(prev => prev.map(k => 
@@ -123,16 +137,30 @@ const App: React.FC = () => {
         alert('You have confirmed kit duty. Thanks for taking responsibility!');
     };
 
-    // FIX: Implement declineKitDuty to resolve type error.
-    const handleDeclineKitDuty = (matchDate: string) => {
+    const handleDeclineKitDuty = (matchDate: string, newAssigneeId: string) => {
         if (!currentUser) return;
-        setKitTracker(prev => prev.map(k => 
-            k.Date === matchDate && k.ProvisionalAssignee === currentUser.MemberID 
-                ? { ...k, ProvisionalAssignee: '', Notes: `${k.Notes || ''} ${currentUser.Name} declined duty.`.trim(), Reason: AssignmentReason.Reassigned } 
-                : k
-        ));
-        alert('You have declined kit duty. The admin will be notified to reassign it.');
+        
+        const newAssignee = teamMembers.find(m => m.MemberID === newAssigneeId);
+        if (!newAssignee) {
+            alert("Selected player not found.");
+            return;
+        }
+
+        setKitTracker(prev => prev.map(k => {
+            if (k.Date === matchDate && k.ProvisionalAssignee === currentUser.MemberID) {
+                return {
+                    ...k,
+                    ProvisionalAssignee: newAssigneeId,
+                    KitResponsible: newAssigneeId,
+                    Reason: AssignmentReason.Reassigned,
+                    Notes: `${k.Notes || ''} Duty declined by ${currentUser.Name}, reassigned to ${newAssignee.Name}.`.trim()
+                };
+            }
+            return k;
+        }));
+        alert(`You have declined kit duty. It has been reassigned to ${newAssignee.Name}.`);
     };
+
 
     const handleCheckIn = (matchDate: string) => {
         const match = kitTracker.find(k => k.Date === matchDate);
@@ -305,18 +333,22 @@ const App: React.FC = () => {
 
     const handleAssignPlayerToMatch = (memberId: string, matchDate: string) => {
         setKitTracker(prev => {
-            const newState = prev.map(match => {
-                // If this is the match we are assigning to, set the new assignee
-                if (match.Date === matchDate) {
-                    return { ...match, ProvisionalAssignee: memberId, Reason: AssignmentReason.Rotation };
+            return prev.map(match => {
+                const updatedMatch = { ...match };
+    
+                // Case 1: This match is the target date. It should be assigned to our member.
+                if (updatedMatch.Date === matchDate) {
+                    updatedMatch.ProvisionalAssignee = memberId;
+                    updatedMatch.Reason = AssignmentReason.Rotation;
+                } 
+                // Case 2: This match was previously assigned to our member, but it's not the target date. Unassign them.
+                else if (updatedMatch.ProvisionalAssignee === memberId) {
+                    updatedMatch.ProvisionalAssignee = '';
+                    updatedMatch.Reason = AssignmentReason.Rotation;
                 }
-                // If another match was previously assigned to this player, unassign it
-                if (match.ProvisionalAssignee === memberId) {
-                    return { ...match, ProvisionalAssignee: '', Reason: AssignmentReason.Rotation };
-                }
-                return match;
+    
+                return updatedMatch;
             });
-            return newState;
         });
     };
 
@@ -387,111 +419,135 @@ const App: React.FC = () => {
                     }));
                 setArrivals(currentArrivals => [...currentArrivals, ...newArrivalsForMatch]);
             }
-            
+
             return updatedTracker;
         });
     };
-    
+
     const handleConfirmHandover = (matchDate: string) => {
-        const match = kitTracker.find(k => k.Date === matchDate);
-        if (!match) return;
-        const carrierId = match.KitResponsible || match.ProvisionalAssignee;
-        if (!carrierId) {
-            alert("Cannot confirm handover. No kit carrier is assigned.");
-            return;
-        }
-
-        // Update Kit Tracker: set status to Completed and calculate WeeksHeld
         setKitTracker(prev => {
-            const previousMatches = prev
-                .filter(k => new Date(k.Date) < new Date(matchDate) && k.Status === KitStatus.Completed)
-                .sort((a,b) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
+            const matchIndex = prev.findIndex(k => k.Date === matchDate);
+            if (matchIndex === -1) return prev;
             
-            const lastMatch = previousMatches[0];
-            let weeksHeld = 1;
-            if (lastMatch && lastMatch.KitResponsible === carrierId) {
-                weeksHeld = (lastMatch.WeeksHeld || 0) + 1;
+            const match = prev[matchIndex];
+            const responsibleMemberId = match.KitResponsible || match.ProvisionalAssignee;
+
+            const updatedTracker = prev.map(k => k.Date === matchDate ? { ...k, Status: KitStatus.Completed } : k);
+            
+            // Logic to update the team member's 'CompletedInRound' status
+            const activeRotationMembers = teamMembers.filter(m => m.RotationEligible === 'Yes' && m.Status === MemberStatus.Active);
+            
+            const updatedMembers = teamMembers.map(m => {
+                if (m.MemberID === responsibleMemberId) {
+                    return { ...m, CompletedInRound: true };
+                }
+                return m;
+            });
+
+            // Check if all eligible members have completed a round
+            const allCompleted = activeRotationMembers.every(m => 
+                updatedMembers.find(um => um.MemberID === m.MemberID)?.CompletedInRound
+            );
+
+            if (allCompleted) {
+                // Reset for the next round
+                setTeamMembers(updatedMembers.map(m => ({ ...m, CompletedInRound: false })));
+            } else {
+                setTeamMembers(updatedMembers);
             }
 
-            return prev.map(k => k.Date === matchDate ? { ...k, Status: KitStatus.Completed, KitResponsible: carrierId, WeeksHeld: weeksHeld } : k);
+            return updatedTracker;
         });
-
-        // Update Team Member: set CompletedInRound to true, but only if it's not a penalty
-        setTeamMembers(prev => {
-            // If the reason was a penalty or reassignment, do not update rotation status.
-            if (match.Reason === AssignmentReason.PenaltyLate || match.Reason === AssignmentReason.Reassigned) {
-                return prev;
-            }
-
-            const updatedMembers = prev.map(m => m.MemberID === carrierId ? { ...m, CompletedInRound: true } : m);
-
-            // Check if round is complete
-            const activeRotationMembers = updatedMembers.filter(m => m.Status === MemberStatus.Active && m.RotationEligible === 'Yes');
-            const allCompleted = activeRotationMembers.every(m => m.CompletedInRound);
-
-            if (allCompleted && activeRotationMembers.length > 0) {
-                alert("This completes the rotation round! Resetting for the next round.");
-                return updatedMembers.map(m => ({...m, CompletedInRound: false }));
-            }
-            return updatedMembers;
-        });
+        alert('Kit handover confirmed and match completed!');
     };
 
-    const adminActions = {
-        addTeamMember, updateTeamMember, deleteTeamMember,
-        addMatch: handleAddMatch, updateMatch, deleteMatch,
-        addBulkTeamMembers, addBulkMatches,
-        assignPlayerToMatch: handleAssignPlayerToMatch,
-        confirmMatchStatus: handleConfirmMatchStatus,
-        applyLatePenalty: handleApplyLatePenalty,
-        reassignKit: handleReassignKit,
-        confirmHandover: handleConfirmHandover,
-        // FIX: Add missing 'notifyNextPlayer' to adminActions to resolve type error.
-        notifyNextPlayer: handleNotifyNextPlayer,
-    };
-    
-    // FIX: Add missing 'confirmKitDuty' and 'declineKitDuty' to userActions to resolve type error.
     const userActions = {
         confirmKitDuty: handleConfirmKitDuty,
         declineKitDuty: handleDeclineKitDuty,
         checkIn: handleCheckIn,
         notifyNextPlayer: handleNotifyNextPlayer,
     };
-    
-    if (!isDataLoaded) return <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900"><p className="text-white">Loading application...</p></div>;
 
-    if (!currentUser) {
-        return (
-            <>
-                <LoginPage onLogin={handleLogin} onResetData={handleResetData} onShowSignUp={() => setShowSignUp(true)} onShowForgotPassword={() => setShowForgotPassword(true)} />
-                {showSignUp && <SignUpModal onSignUp={handleSignUp} onClose={() => setShowSignUp(false)} />}
-                {showForgotPassword && <ForgotPasswordModal teamMembers={teamMembers} onClose={() => setShowForgotPassword(false)} />}
-            </>
-        );
+    const adminActions = {
+        addTeamMember: addTeamMember,
+        updateTeamMember: updateTeamMember,
+        deleteTeamMember: deleteTeamMember,
+        addMatch: handleAddMatch,
+        updateMatch: updateMatch,
+        deleteMatch: deleteMatch,
+        addBulkTeamMembers: addBulkTeamMembers,
+        addBulkMatches: addBulkMatches,
+        assignPlayerToMatch: handleAssignPlayerToMatch,
+        confirmMatchStatus: handleConfirmMatchStatus,
+        applyLatePenalty: handleApplyLatePenalty,
+        reassignKit: handleReassignKit,
+        confirmHandover: handleConfirmHandover,
+        notifyNextPlayer: handleNotifyNextPlayer,
+    };
+
+    if (!isDataLoaded) {
+        return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
     }
-    
-    const pageContent = () => {
+
+    const renderPage = () => {
+        if (currentPage === 'public') {
+            return <PublicDashboard 
+                teamMembers={teamMembers} 
+                kitTracker={kitTracker} 
+                onNavigateToLogin={() => {
+                    setCurrentPage('login');
+                    window.history.pushState({}, '', '/');
+                }}
+            />;
+        }
+
+        if (!currentUser) {
+            return <LoginPage 
+                onLogin={handleLogin}
+                onShowSignUp={() => setShowSignUp(true)}
+                onShowForgotPassword={() => setShowForgotPassword(true)}
+                onShowPublicView={() => {
+                    setCurrentPage('public');
+                    window.history.pushState({}, '', '/public');
+                }}
+            />;
+        }
+
         if (currentPage === 'profile') {
-            return <UserProfile currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onBack={() => setCurrentPage('dashboard')} />;
+            return (
+                 <DashboardShell currentUser={currentUser} onLogout={handleLogout} onNavigateToProfile={() => setCurrentPage('profile')}>
+                    <UserProfile
+                        currentUser={currentUser}
+                        onUpdateProfile={handleUpdateProfile}
+                        onChangePassword={handleChangePassword}
+                        onBack={() => setCurrentPage('dashboard')}
+                    />
+                 </DashboardShell>
+            );
         }
-        if (currentPage === 'dashboard') {
-            return currentUser.IsAdmin
-                ? <AdminPanel teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={{...adminActions, notifyNextPlayer: handleNotifyNextPlayer}} />
-                : <UserPanel currentUser={currentUser} teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={userActions} />;
-        }
-        return null;
+
+        // Default to dashboard view
+        return (
+            <DashboardShell currentUser={currentUser} onLogout={handleLogout} onNavigateToProfile={() => setCurrentPage('profile')}>
+                {currentUser.IsAdmin ? (
+                    <AdminPanel teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={adminActions} />
+                ) : (
+                    <UserPanel currentUser={currentUser} teamMembers={teamMembers} kitTracker={kitTracker} arrivals={arrivals} actions={userActions} />
+                )}
+            </DashboardShell>
+        );
     };
 
     return (
         <>
-            <DashboardShell currentUser={currentUser} onLogout={handleLogout} onNavigateToProfile={() => setCurrentPage('profile')}>
-                {pageContent()}
-            </DashboardShell>
+            {renderPage()}
+            {showSignUp && <SignUpModal onSignUp={handleSignUp} onClose={() => setShowSignUp(false)} />}
+            {showForgotPassword && <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />}
             {notificationInfo && (
-                <NotificationModal
+                <NotificationModal 
                     assignee={notificationInfo.assignee}
-                    directMessage={notificationInfo.directMessage}
                     groupMessage={notificationInfo.groupMessage}
+                    directMessage={notificationInfo.directMessage}
                     onClose={() => setNotificationInfo(null)}
                 />
             )}
