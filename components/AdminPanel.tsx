@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
 import { KitStatus } from '../types';
@@ -19,8 +20,10 @@ interface AdminPanelProps {
         addMatch: (matchData: Omit<KitTrackerEntry, 'ProvisionalAssignee' | 'KitResponsible' | 'TakenOnBehalfOf' | 'Status' | 'WeeksHeld' | 'MatchOn' | 'Reason' | 'DeferredMemberID'>) => void;
         updateMatch: (match: KitTrackerEntry) => void;
         deleteMatch: (date: string) => void;
-        addBulkTeamMembers: (data: any[]) => { added: number, skipped: number };
-        addBulkMatches: (data: any[]) => { added: number, skipped: number };
+        // FIX: Updated return type to Promise to match async function
+        addBulkTeamMembers: (data: any[]) => Promise<{ added: number, skipped: number }>;
+        // FIX: Updated return type to Promise to match async function
+        addBulkMatches: (data: any[]) => Promise<{ added: number, skipped: number }>;
         assignPlayerToMatch: (memberId: string, matchDate: string) => void;
         confirmMatchStatus: (matchDate: string, newStatus: KitStatus.Upcoming | KitStatus.NoPlay) => void;
         applyLatePenalty: (matchDate: string, memberId: string) => void;
