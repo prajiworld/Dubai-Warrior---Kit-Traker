@@ -1,17 +1,19 @@
 {
-  "name": "team-kit-&-arrival-tracker",
+  "name": "team-kit-and-arrival-tracker",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.1.1",
+    "@google/genai": "^1.19.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "firebase": "^12.3.0",
     "react": "^19.1.1",
-    "@google/genai": "^1.19.0"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

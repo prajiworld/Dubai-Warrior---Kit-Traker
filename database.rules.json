@@ -1,0 +1,23 @@
+{
+  "rules": {
+    "teamMembers": {
+      ".read": "auth != null",
+      ".indexOn": ["username"],
+      "$uid": {
+        ".write": "auth != null && (auth.uid === $uid || root.child('teamMembers').child(auth.uid).child('IsAdmin').val() === true)"
+      }
+    },
+    "kitTracker": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('teamMembers').child(auth.uid).child('IsAdmin').val() === true",
+      ".indexOn": ["Date"]
+    },
+    "arrivals": {
+      ".read": "auth != null",
+      ".indexOn": ["MatchDate", "Member"],
+      "$arrivalId": {
+        ".write": "auth != null && (newData.child('Member').val() === auth.uid || root.child('teamMembers').child(auth.uid).child('IsAdmin').val() === true)"
+      }
+    }
+  }
+}

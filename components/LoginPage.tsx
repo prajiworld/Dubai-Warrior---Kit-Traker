@@ -1,24 +1,34 @@
+
 import React, { useState } from 'react';
+import { auth } from '../firebaseConfig';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import DubaiWarriorLogo from './Logo';
 
 interface LoginPageProps {
-    onLogin: (username: string, password: string) => boolean;
     onShowSignUp: () => void;
     onShowForgotPassword: () => void;
-    onResetData: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForgotPassword, onResetData }) => {
-    const [username, setUsername] = useState('');
+const LoginPage: React.FC<LoginPageProps> = ({ onShowSignUp, onShowForgotPassword }) => {
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        const success = onLogin(username, password);
-        if (!success) {
-            setError('Invalid username or password. Please try again.');
+        try {
+            // onAuthStateChanged in App.tsx will handle the login state.
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (err: any) {
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                setError('Invalid email or password. Please try again.');
+            } else if (err.code === 'auth/invalid-email') {
+                setError('Please enter a valid email address.');
+            } else {
+                setError('An unknown error occurred. Please try again later.');
+                console.error(err);
+            }
         }
     };
     
@@ -48,17 +58,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
                             <input
-                                id="username"
-                                name="username"
-                                type="text"
-                                autoComplete="username"
+                                id="email"
+                                name="email"
+                                type="email"
+                                autoComplete="email"
                                 required
                                 className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-brand-accent focus:border-brand-accent sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                placeholder="e.g. alex"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="e.g. alex@example.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                             />
                         </div>
                         <div>
@@ -102,19 +112,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onShowSignUp, onShowForg
                         Sign up
                     </a>
                 </p>
-
-                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-                        Having trouble?{' '}
-                        <button
-                            type="button"
-                            onClick={onResetData}
-                            className="font-medium text-red-500 hover:text-red-700 focus:outline-none"
-                        >
-                            Reset Application Data
-                        </button>
-                    </p>
-                </div>
             </div>
         </div>
     );

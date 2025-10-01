@@ -26,6 +26,7 @@ export interface TeamMember {
   MemberID: string;
   Name: string;
   username: string;
+  email: string;
   password: string;
   Role: string;
   IsAdmin: boolean;

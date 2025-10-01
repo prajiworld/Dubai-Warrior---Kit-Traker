@@ -3,7 +3,7 @@ import type { TeamMember } from '../types';
 import DubaiWarriorLogo from './Logo';
 import { XCircleIcon } from './Icons';
 
-export type NewUserData = Pick<TeamMember, 'Name' | 'username' | 'password' | 'PhoneNumber'>;
+export type NewUserData = Pick<TeamMember, 'Name' | 'username' | 'password' | 'PhoneNumber' | 'email'>;
 
 interface SignUpModalProps {
   onSignUp: (userData: NewUserData) => boolean; // Returns true on success, false on failure (e.g., username exists)
@@ -14,6 +14,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
     const [formData, setFormData] = useState({
         name: '',
         username: '',
+        email: '',
         password: '',
         confirmPassword: '',
         phoneNumber: '',
@@ -42,6 +43,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
         const success = onSignUp({
             Name: formData.name,
             username: formData.username.trim(),
+            email: formData.email.trim(),
             password: formData.password,
             PhoneNumber: formData.phoneNumber,
         });
@@ -84,6 +86,10 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ onSignUp, onClose }) => {
                     <div>
                         <label htmlFor="name-signup" className={labelClasses}>Full Name</label>
                         <input id="name-signup" name="name" className={inputClasses} type="text" placeholder="e.g. Ben Kenobi" value={formData.name} onChange={handleChange} required />
+                    </div>
+                     <div>
+                        <label htmlFor="email-signup" className={labelClasses}>Email</label>
+                        <input id="email-signup" name="email" className={inputClasses} type="email" placeholder="e.g. ben.kenobi@galaxy.net" value={formData.email} onChange={handleChange} required />
                     </div>
                      <div>
                         <label htmlFor="username-signup" className={labelClasses}>Username</label>
