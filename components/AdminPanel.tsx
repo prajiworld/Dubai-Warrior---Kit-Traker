@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import type { TeamMember, KitTrackerEntry, Arrival } from '../types';
 import { KitStatus } from '../types';
-import DataManagementPanel from './DataManagementPanel';
 import MatchDayControlPanel from './MatchDayControlPanel';
 import KitRotationSchedulePanel from './KitRotationSchedulePanel';
 import KitHistoryPanel from './KitHistoryPanel';
@@ -30,7 +29,7 @@ interface AdminPanelProps {
     };
 }
 
-type AdminTab = 'dashboard'| 'schedule' | 'history' | 'dataManagement';
+type AdminTab = 'dashboard'| 'schedule' | 'history';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ teamMembers, kitTracker, arrivals, actions }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
@@ -77,7 +76,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ teamMembers, kitTracker, arriva
                     <TabButton tabName="dashboard" label="Dashboard" />
                     <TabButton tabName="schedule" label="Schedule" />
                     <TabButton tabName="history" label="History" />
-                    <TabButton tabName="dataManagement" label="Master Data" />
                 </nav>
             </div>
 
@@ -116,13 +114,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ teamMembers, kitTracker, arriva
                         teamMembers={teamMembers}
                         kitTracker={kitTracker}
                         actions={{ notifyNextPlayer: actions.notifyNextPlayer }}
-                    />
-                )}
-                {activeTab === 'dataManagement' && (
-                    <DataManagementPanel
-                        teamMembers={teamMembers}
-                        kitTracker={kitTracker}
-                        actions={actions}
                     />
                 )}
             </div>

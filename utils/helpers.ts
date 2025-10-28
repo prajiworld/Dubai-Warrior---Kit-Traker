@@ -30,9 +30,9 @@ export const formatTime = (timeString: string | null) => {
 };
 
 
-export const MEMBER_CSV_TEMPLATE = `Name,username,password,Role,IsAdmin,PhoneNumber,OwnsCar,Status,RotationEligible,PenaltyEligible,Order,Notes
-Ben Kenobi,ben_csv,pass123,Player,FALSE,+971501234567,TRUE,Active,Yes,TRUE,10,From CSV
-Charlie Daniels,charlie_csv,pass123,Player,FALSE,+971507654321,FALSE,Active,Yes,FALSE,11,From CSV`;
+export const MEMBER_CSV_TEMPLATE = `Name,email,password,Role,IsAdmin,PhoneNumber,OwnsCar,Status,RotationEligible,PenaltyEligible,Order,Notes
+Ben Kenobi,ben.kenobi@galaxy.net,pass123,Player,FALSE,+971501234567,TRUE,Active,Yes,TRUE,10,From CSV
+Charlie Daniels,charlie.daniels@galaxy.net,pass123,Player,FALSE,+971507654321,FALSE,Active,Yes,FALSE,11,From CSV`;
 
 export const MATCH_CSV_TEMPLATE = `Date,DueDate,Lat,Lng,GeoRadiusMeters,CutoffTime,Notes
 ${new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]},${new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]},25.0763,55.1886,250,22:45,Friendly Match from CSV`;

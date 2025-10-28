@@ -21,13 +21,25 @@ export enum AssignmentReason {
   Reassigned = "Reassigned",
 }
 
+export const DW_CATEGORIES = [
+  "Main (All-Rounder)",
+  "Middle Order (Batsman)",
+  "Middle Order (Bat) & Main (Bowling)",
+  "RS (All-Rounder)",
+  "RS (Bat) & Main (Bowl)",
+  "RS (Bowl) & Main (Bat)",
+  "RS (Batsman)",
+  "RS (Bowl) & Middle Order (Bat)",
+] as const;
+
+export type DWCategory = typeof DW_CATEGORIES[number];
 
 export interface TeamMember {
   MemberID: string;
   Name: string;
   username: string;
   email: string;
-  password: string;
+  password?: string;
   Role: string;
   IsAdmin: boolean;
   PhoneNumber: string;
@@ -38,6 +50,7 @@ export interface TeamMember {
   Order: number;
   CompletedInRound: boolean;
   Notes: string;
+  DWCategory: DWCategory;
 }
 
 export interface KitTrackerEntry {
@@ -63,4 +76,34 @@ export interface Arrival {
   Member: string; // MemberID, Ref to TeamMember.MemberID
   ArrivalTime: string | null; // ISO DateTime string
   CheckInLatLong: { lat: number; lng: number; } | null;
+}
+
+export interface Player {
+    id: number;
+    name: string;
+    category: string;
+    baseValue: number;
+    soldAt?: number;
+}
+
+export interface Team {
+    name: string;
+    purse: number;
+    spent: number;
+    players: Player[];
+}
+
+export interface Teams {
+    [key: string]: Team;
+}
+
+export interface Category {
+    id: number;
+    name: string;
+    base: number;
+    multiplier: number;
+    min: number;
+    max: number;
+    phase: number;
+    description?: string;
 }
