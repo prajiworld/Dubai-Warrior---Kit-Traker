@@ -2,17 +2,17 @@ const CACHE_NAME = 'kit-tracker-cache-v1';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',
-  '/index.tsx',
-  '/App.tsx',
-  '/components/AdminPanel.tsx',
-  '/components/DashboardShell.tsx',
-  '/components/Icons.tsx',
-  '/components/StatusBadge.tsx',
-  '/components/UserPanel.tsx',
-  '/components/UserProfile.tsx',
-  '/constants.ts',
-  '/types.ts',
-  '/utils/helpers.ts',
+  '/src/index.tsx',
+  '/src/App.tsx',
+  '/src/components/AdminPanel.tsx',
+  '/src/components/DashboardShell.tsx',
+  '/src/components/Icons.tsx',
+  '/src/components/StatusBadge.tsx',
+  '/src/components/UserPanel.tsx',
+  '/src/components/UserProfile.tsx',
+  '/src/constants.ts',
+  '/src/types.ts',
+  '/src/utils/helpers.ts',
   'https://cdn.tailwindcss.com'
 ];
 

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { auth } from '../firebaseConfig';
+import { auth } from '../firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import DubaiWarriorLogo from './Logo';
 
@@ -13,14 +13,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowSignUp, onShowForgotPasswor
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setLoading(true);
         try {
             // onAuthStateChanged in App.tsx will handle the login state.
             await signInWithEmailAndPassword(auth, email, password);
         } catch (err: any) {
+            setLoading(false);
             if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
                 setError('Invalid email or password. Please try again.');
             } else if (err.code === 'auth/invalid-email') {
@@ -100,9 +103,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onShowSignUp, onShowForgotPasswor
                     <div>
                         <button
                             type="submit"
-                            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent transition-colors duration-300"
+                            disabled={loading}
+                            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent transition-colors duration-300 disabled:opacity-50"
                         >
-                            Sign In
+                            {loading ? 'Signing In...' : 'Sign In'}
                         </button>
                     </div>
                 </form>
